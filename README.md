@@ -51,15 +51,7 @@ Ragent 是一个企业级 Agentic RAG 平台，覆盖从文档入库到智能问
 | 📝 | <a href="https://nageoffer.com/ragent/interview/" target="_blank">简历怎么写</a> | 项目如何写到简历上 |
 | 💡 | <a href="https://nageoffer.com/ragent/why-springai-langchain4j/" target="_blank">为什么不用 Spring AI / LangChain4j</a> | 技术选型的思考 |
 
-## 🤝 贡献
 
-Ragent AI 仍在持续迭代中，欢迎参与共建，一起把项目打磨得更好。 感谢各位亦菲、彦祖们对 Ragent AI 的贡献：
-
-<p align="left">
-    <a href="https://github.com/nageoffer/ragent/graphs/contributors">
-        <img src="https://contrib.rocks/image?repo=nageoffer/ragent&columns=8" />
-    </a>
-</p>
 
 <details>
 <summary><b>📑 目录</b>（点击展开）</summary>
@@ -458,16 +450,4 @@ To replace memory, implement `AgentMemory` and provide a Spring bean. To disable
 
 Design principles: no Spring AI, LangChain4j, Semantic Kernel, or other Agent framework; no RAG/MCP rewrite; no public API breakage; Agent orchestration stays replaceable and thin.
 
-<p align="center">
-  <a href="https://www.star-history.com/?repos=nageoffer%2Fragent&type=date&legend=top-left">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=nageoffer/ragent&type=date&theme=dark&legend=top-left" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=nageoffer/ragent&type=date&legend=top-left" />
-      <img alt="Star History Chart" src="https://api.star-history.com/image?repos=nageoffer/ragent&type=date&legend=top-left" />
-    </picture>
-  </a>
-</p>
 
-<p align="center">
-  如果屏幕前的亦菲/彦祖觉得项目还不错，点个 Star 支持一下，这是对开源作者最好的认可！
-</p>
