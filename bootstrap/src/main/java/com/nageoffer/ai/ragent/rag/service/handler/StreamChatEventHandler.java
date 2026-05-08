@@ -29,9 +29,12 @@ import com.nageoffer.ai.ragent.framework.web.SseEmitterSender;
 import com.nageoffer.ai.ragent.infra.chat.StreamCallback;
 import com.nageoffer.ai.ragent.infra.config.AIModelProperties;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
+import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionContext;
+import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionService;
 import lombok.extern.slf4j.Slf4j;
 import com.nageoffer.ai.ragent.rag.service.ConversationGroupService;
 
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -44,8 +47,10 @@ public class StreamChatEventHandler implements StreamCallback {
     private final SseEmitterSender sender;
     private final String conversationId;
     private final ConversationMemoryService memoryService;
+    private final MemoryExtractionService memoryExtractionService;
     private final ConversationGroupService conversationGroupService;
     private final String taskId;
+    private final String question;
     private final String userId;
     private final StreamTaskManager taskManager;
     private final boolean sendTitleOnComplete;
@@ -63,7 +68,9 @@ public class StreamChatEventHandler implements StreamCallback {
         this.sender = new SseEmitterSender(params.getEmitter());
         this.conversationId = params.getConversationId();
         this.taskId = params.getTaskId();
+        this.question = params.getQuestion();
         this.memoryService = params.getMemoryService();
+        this.memoryExtractionService = params.getMemoryExtractionService();
         this.conversationGroupService = params.getConversationGroupService();
         this.taskManager = params.getTaskManager();
         this.userId = UserContext.getUserId();
@@ -115,6 +122,7 @@ public class StreamChatEventHandler implements StreamCallback {
                 String thinkingContent = thinking.isEmpty() ? null : thinking.toString();
                 ChatMessage message = ChatMessage.assistant(content, thinkingContent, resolveThinkingDuration());
                 messageId = memoryService.append(conversationId, userId, message);
+                triggerMemoryExtraction(messageId, content);
             } catch (Exception e) {
                 log.error("取消时持久化消息失败，conversationId：{}", conversationId, e);
             }
@@ -163,6 +171,7 @@ public class StreamChatEventHandler implements StreamCallback {
             String thinkingContent = thinking.isEmpty() ? null : thinking.toString();
             ChatMessage message = ChatMessage.assistant(answer.toString(), thinkingContent, resolveThinkingDuration());
             messageId = memoryService.append(conversationId, userId, message);
+            triggerMemoryExtraction(messageId, answer.toString());
         } catch (Exception e) {
             log.error("对话完成时持久化消息失败，conversationId：{}", conversationId, e);
         }
@@ -206,6 +215,24 @@ public class StreamChatEventHandler implements StreamCallback {
 
     private Integer resolveThinkingDuration() {
         return thinkingDurationSeconds > 0 ? thinkingDurationSeconds : null;
+    }
+
+    private void triggerMemoryExtraction(String messageId, String content) {
+        if (StrUtil.isBlank(messageId) || StrUtil.isBlank(content)) {
+            return;
+        }
+        try {
+            memoryExtractionService.extractAsync(MemoryExtractionContext.builder()
+                    .userId(userId)
+                    .conversationId(conversationId)
+                    .userQuestion(question)
+                    .assistantAnswer(content)
+                    .sourceMessageIds(List.of(messageId))
+                    .build());
+        } catch (Exception e) {
+            log.warn("Trigger long-term memory extraction failed, conversationId={}, messageId={}",
+                    conversationId, messageId, e);
+        }
     }
 
     private String resolveTitleForEvent() {

@@ -36,6 +36,8 @@ public class PromptContext {
 
     private String kbContext;
 
+    private String memoryContext;
+
     private List<NodeScore> mcpIntents;
 
     private List<NodeScore> kbIntents;

@@ -128,6 +128,12 @@ export function SystemSettingsPage() {
           />
           <InfoItem label="Summary Max Chars" value={rag.memory.summaryMaxChars} />
           <InfoItem label="Title Max Length" value={rag.memory.titleMaxLength} />
+          <InfoItem label="Long Term Enabled" value={<BoolBadge value={rag.memory.longTermEnabled} />} />
+          <InfoItem label="Auto Extraction" value={<BoolBadge value={rag.memory.autoExtractionEnabled} />} />
+          <InfoItem label="Recall Enabled" value={<BoolBadge value={rag.memory.recallEnabled} />} />
+          <InfoItem label="Min Confidence" value={rag.memory.minConfidence} />
+          <InfoItem label="Max Recall" value={rag.memory.maxRecall} />
+          <InfoItem label="Working TTL Days" value={rag.memory.workingTtlDays} />
         </CardContent>
       </Card>
 

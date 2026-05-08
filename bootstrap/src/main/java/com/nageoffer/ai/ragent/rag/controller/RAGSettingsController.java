@@ -104,6 +104,12 @@ public class RAGSettingsController {
                 .summaryStartTurns(props.getSummaryStartTurns())
                 .summaryMaxChars(props.getSummaryMaxChars())
                 .titleMaxLength(props.getTitleMaxLength())
+                .longTermEnabled(props.getLongTermEnabled())
+                .autoExtractionEnabled(props.getAutoExtractionEnabled())
+                .recallEnabled(props.getRecallEnabled())
+                .minConfidence(props.getMinConfidence())
+                .maxRecall(props.getMaxRecall())
+                .workingTtlDays(props.getWorkingTtlDays())
                 .build();
     }
 

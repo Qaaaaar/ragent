@@ -20,6 +20,7 @@ package com.nageoffer.ai.ragent.rag.service.handler;
 import com.nageoffer.ai.ragent.infra.chat.StreamCallback;
 import com.nageoffer.ai.ragent.infra.config.AIModelProperties;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
+import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionService;
 import com.nageoffer.ai.ragent.rag.service.ConversationGroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,7 @@ public class StreamCallbackFactory {
 
     private final AIModelProperties modelProperties;
     private final ConversationMemoryService memoryService;
+    private final MemoryExtractionService memoryExtractionService;
     private final ConversationGroupService conversationGroupService;
     private final StreamTaskManager taskManager;
 
@@ -48,13 +50,16 @@ public class StreamCallbackFactory {
      */
     public StreamCallback createChatEventHandler(SseEmitter emitter,
                                                  String conversationId,
-                                                 String taskId) {
+                                                 String taskId,
+                                                 String question) {
         StreamChatHandlerParams params = StreamChatHandlerParams.builder()
                 .emitter(emitter)
                 .conversationId(conversationId)
                 .taskId(taskId)
+                .question(question)
                 .modelProperties(modelProperties)
                 .memoryService(memoryService)
+                .memoryExtractionService(memoryExtractionService)
                 .conversationGroupService(conversationGroupService)
                 .taskManager(taskManager)
                 .build();

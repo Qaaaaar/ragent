@@ -52,5 +52,8 @@ public class StreamChatContext {
     private RewriteResult rewriteResult;
 
     @Setter
+    private String memoryContext;
+
+    @Setter
     private List<SubQuestionIntent> subIntents;
 }

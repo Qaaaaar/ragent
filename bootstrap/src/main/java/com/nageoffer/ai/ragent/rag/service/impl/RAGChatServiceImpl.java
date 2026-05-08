@@ -55,7 +55,7 @@ public class RAGChatServiceImpl implements RAGChatService {
         log.info("开始流式对话，会话ID：{}，任务ID：{}", actualConversationId, taskId);
         boolean thinkingEnabled = Boolean.TRUE.equals(deepThinking);
 
-        StreamCallback callback = callbackFactory.createChatEventHandler(emitter, actualConversationId, taskId);
+        StreamCallback callback = callbackFactory.createChatEventHandler(emitter, actualConversationId, taskId, question);
 
         StreamChatContext ctx = StreamChatContext.builder()
                 .question(question)

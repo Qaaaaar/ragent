@@ -28,6 +28,7 @@ import com.nageoffer.ai.ragent.rag.core.guidance.GuidanceDecision;
 import com.nageoffer.ai.ragent.rag.core.guidance.IntentGuidanceService;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentResolver;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
+import com.nageoffer.ai.ragent.rag.core.memory.MemoryRetrievalService;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptContext;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptTemplateLoader;
 import com.nageoffer.ai.ragent.rag.core.prompt.RAGPromptService;
@@ -66,6 +67,7 @@ public class StreamChatPipeline {
 
     private final SearchChannelProperties searchProperties;
     private final ConversationMemoryService memoryService;
+    private final MemoryRetrievalService memoryRetrievalService;
     private final QueryRewriteService queryRewriteService;
     private final IntentResolver intentResolver;
     private final ChatRoutePlanner routePlanner;
@@ -82,6 +84,7 @@ public class StreamChatPipeline {
     public void execute(StreamChatContext ctx) {
         loadMemory(ctx);
         rewriteQuery(ctx);
+        recallLongTermMemory(ctx);
         resolveIntents(ctx);
 
         ChatRoutePlan routePlan = planRoute(ctx);
@@ -114,6 +117,13 @@ public class StreamChatPipeline {
     private void rewriteQuery(StreamChatContext ctx) {
         RewriteResult rewriteResult = queryRewriteService.rewriteWithSplit(ctx.getQuestion(), ctx.getHistory());
         ctx.setRewriteResult(rewriteResult);
+    }
+
+    private void recallLongTermMemory(StreamChatContext ctx) {
+        String query = ctx.getRewriteResult() == null
+                ? ctx.getQuestion()
+                : ctx.getRewriteResult().rewrittenQuestion();
+        ctx.setMemoryContext(memoryRetrievalService.retrieveContext(ctx.getUserId(), query));
     }
 
     private void resolveIntents(StreamChatContext ctx) {
@@ -184,6 +194,7 @@ public class StreamChatPipeline {
                 retrievalCtx,
                 mergedGroup,
                 ctx.getHistory(),
+                ctx.getMemoryContext(),
                 ctx.isDeepThinking(),
                 ctx.getCallback()
         );
@@ -215,11 +226,13 @@ public class StreamChatPipeline {
 
     private StreamCancellationHandle streamLLMResponse(RewriteResult rewriteResult, RetrievalContext ctx,
                                                        IntentGroup intentGroup, List<ChatMessage> history,
-                                                       boolean deepThinking, StreamCallback callback) {
+                                                       String memoryContext, boolean deepThinking,
+                                                       StreamCallback callback) {
         PromptContext promptContext = PromptContext.builder()
                 .question(rewriteResult.rewrittenQuestion())
                 .mcpContext(ctx.getMcpContext())
                 .kbContext(ctx.getKbContext())
+                .memoryContext(memoryContext)
                 .mcpIntents(intentGroup.mcpIntents())
                 .kbIntents(intentGroup.kbIntents())
                 .intentChunks(ctx.getIntentChunks())

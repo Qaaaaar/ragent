@@ -69,6 +69,12 @@ rag:
     ttl-minutes: 60
     summary-max-chars: 200
     title-max-length: 30
+    long-term-enabled: true
+    auto-extraction-enabled: true
+    recall-enabled: true
+    min-confidence: 0.78
+    max-recall: 5
+    working-ttl-days: 30
 
   semaphore:
     document-upload:

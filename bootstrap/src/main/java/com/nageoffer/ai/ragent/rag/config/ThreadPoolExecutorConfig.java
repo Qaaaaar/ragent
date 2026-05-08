@@ -155,6 +155,25 @@ public class ThreadPoolExecutorConfig {
     }
 
     /**
+     * Long-term memory extraction executor.
+     */
+    @Bean
+    public Executor longTermMemoryExecutor() {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1,
+                Math.max(2, CPU_COUNT >> 1),
+                60,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(200),
+                ThreadFactoryBuilder.create()
+                        .setNamePrefix("long_term_memory_executor_")
+                        .build(),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+        return TtlExecutors.getTtlExecutor(executor);
+    }
+
+    /**
      * 模型流式输出线程池
      */
     @Bean

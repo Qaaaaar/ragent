@@ -149,6 +149,12 @@ public class SystemSettingsVO {
         private Integer summaryStartTurns;
         private Integer summaryMaxChars;
         private Integer titleMaxLength;
+        private Boolean longTermEnabled;
+        private Boolean autoExtractionEnabled;
+        private Boolean recallEnabled;
+        private Double minConfidence;
+        private Integer maxRecall;
+        private Integer workingTtlDays;
     }
 
     @Setter

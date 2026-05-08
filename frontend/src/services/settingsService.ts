@@ -29,6 +29,12 @@ export interface SystemSettings {
       summaryEnabled: boolean;
       summaryMaxChars: number;
       titleMaxLength: number;
+      longTermEnabled: boolean;
+      autoExtractionEnabled: boolean;
+      recallEnabled: boolean;
+      minConfidence: number;
+      maxRecall: number;
+      workingTtlDays: number;
     };
   };
   ai: {

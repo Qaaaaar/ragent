@@ -18,6 +18,8 @@
 package com.nageoffer.ai.ragent.rag.config;
 
 import com.nageoffer.ai.ragent.rag.config.validation.ValidMemoryConfig;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
@@ -67,4 +69,40 @@ public class MemoryProperties {
     @Min(10)
     @Max(100)
     private Integer titleMaxLength = 30;
+
+    /**
+     * Enable cross-session working and long-term memory.
+     */
+    private Boolean longTermEnabled = true;
+
+    /**
+     * Enable async memory extraction after assistant responses.
+     */
+    private Boolean autoExtractionEnabled = true;
+
+    /**
+     * Enable memory recall before prompt assembly.
+     */
+    private Boolean recallEnabled = true;
+
+    /**
+     * Minimum confidence for auto-extracted memories.
+     */
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    private Double minConfidence = 0.78D;
+
+    /**
+     * Maximum recalled memories added to a prompt.
+     */
+    @Min(1)
+    @Max(20)
+    private Integer maxRecall = 5;
+
+    /**
+     * Default TTL for working memories.
+     */
+    @Min(1)
+    @Max(365)
+    private Integer workingTtlDays = 30;
 }

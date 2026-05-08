@@ -46,6 +46,7 @@ public class RAGPromptService {
 
     private static final String MCP_CONTEXT_HEADER = "## 动态数据片段";
     private static final String KB_CONTEXT_HEADER = "## 文档内容";
+    private static final String MEMORY_CONTEXT_HEADER = "## Relevant Memory";
 
     private final PromptTemplateLoader promptTemplateLoader;
 
@@ -77,6 +78,9 @@ public class RAGPromptService {
         }
         if (StrUtil.isNotBlank(context.getKbContext())) {
             messages.add(ChatMessage.user(formatEvidence(KB_CONTEXT_HEADER, context.getKbContext())));
+        }
+        if (StrUtil.isNotBlank(context.getMemoryContext())) {
+            messages.add(ChatMessage.system(formatEvidence(MEMORY_CONTEXT_HEADER, context.getMemoryContext())));
         }
         if (CollUtil.isNotEmpty(history)) {
             messages.addAll(history);
