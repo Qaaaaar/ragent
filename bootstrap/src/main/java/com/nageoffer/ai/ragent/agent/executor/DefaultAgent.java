@@ -30,13 +30,13 @@ import com.nageoffer.ai.ragent.agent.planner.AgentPlan;
 import com.nageoffer.ai.ragent.agent.planner.AgentPlanner;
 import com.nageoffer.ai.ragent.agent.planner.ToolCallSpec;
 import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
-import com.nageoffer.ai.ragent.agent.rag.AgentDocument;
-import com.nageoffer.ai.ragent.agent.rag.AgentRagRetriever;
 import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
 import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
+import com.nageoffer.ai.ragent.framework.trace.RagTraceNode;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,12 +63,12 @@ public class DefaultAgent implements Agent {
     private final AgentProperties properties;
     private final AgentPlanner planner;
     private final AgentMemory memory;
-    private final AgentRagRetriever ragRetriever;
     private final ToolRegistry toolRegistry;
     private final AgentPromptBuilder promptBuilder;
     private final LLMService llmService;
 
     @Override
+    @RagTraceNode(name = "agent-run", type = "AGENT")
     public AgentResponse run(AgentRequest request) {
         AgentRequest actualRequest = normalizeRequest(request);
         AgentContext context = AgentContext.builder()
@@ -76,15 +76,13 @@ public class DefaultAgent implements Agent {
                 .memoryMessages(memory.load(actualRequest.getSessionId(), properties.getMemory().getMaxMessages()))
                 .build();
 
-        boolean ragEnabled = properties.getRag().isEnabled() && actualRequest.isEnableRag();
         boolean toolsEnabled = properties.getTools().isEnabled() && actualRequest.isEnableToolCalling();
         int maxIterations = resolveMaxIterations(actualRequest);
         Set<String> calledToolSignatures = new HashSet<>();
-        boolean ragDone = false;
         boolean stoppedByMaxIterations = false;
 
-        log.info("Agent run started, sessionId={}, ragEnabled={}, toolsEnabled={}, maxIterations={}",
-                actualRequest.getSessionId(), ragEnabled, toolsEnabled, maxIterations);
+        log.info("Agent run started, sessionId={}, toolsEnabled={}, knowledgeSearchEnabled={}, maxIterations={}",
+                actualRequest.getSessionId(), toolsEnabled, isKnowledgeSearchEnabled(actualRequest), maxIterations);
 
         try {
             for (int iteration = 1; iteration <= maxIterations; iteration++) {
@@ -102,17 +100,6 @@ public class DefaultAgent implements Agent {
                 }
 
                 boolean didWork = false;
-                if (plan.isNeedRag()) {
-                    if (ragEnabled && !ragDone) {
-                        retrieveRag(context);
-                        ragDone = true;
-                        didWork = true;
-                    } else if (!ragEnabled) {
-                        addStep(context, AgentActionType.RAG_SEARCH, "rag", actualRequest.getUserInput(),
-                                "RAG disabled for this request.", 0L, "Skipped RAG because it is disabled.");
-                    }
-                }
-
                 if (plan.isNeedTool()) {
                     if (toolsEnabled) {
                         didWork = callTools(context, plan.getToolCalls(), calledToolSignatures) || didWork;
@@ -141,7 +128,7 @@ public class DefaultAgent implements Agent {
 
             String answer = answer(context);
             saveMemory(actualRequest, answer);
-            log.info("Agent run finished, sessionId={}, ragDocs={}, toolResults={}, steps={}, success=true",
+            log.info("Agent run finished, sessionId={}, legacyDocs={}, toolResults={}, steps={}, success=true",
                     actualRequest.getSessionId(),
                     context.getRetrievedContext().size(),
                     context.getToolResults().size(),
@@ -171,30 +158,11 @@ public class DefaultAgent implements Agent {
     private AgentPlan plan(AgentContext context) {
         long startMs = System.currentTimeMillis();
         AgentPlan plan = planner.plan(context);
+        adaptLegacyRagPlan(plan, context);
         context.setCurrentPlan(plan);
         addStep(context, AgentActionType.PLAN, "planner", "", summarizePlan(plan),
                 System.currentTimeMillis() - startMs, plan.getReasoningSummary());
         return plan;
-    }
-
-    private void retrieveRag(AgentContext context) {
-        long startMs = System.currentTimeMillis();
-        String query = context.getRequest().getUserInput();
-        try {
-            List<AgentDocument> documents = ragRetriever.retrieve(query, context);
-            context.getRetrievedContext().addAll(documents);
-            addStep(context, AgentActionType.RAG_SEARCH, "rag", query,
-                    "retrieved=" + documents.size(), System.currentTimeMillis() - startMs,
-                    "Retrieved knowledge context.");
-            log.info("Agent RAG search completed, sessionId={}, count={}, latencyMs={}",
-                    context.getRequest().getSessionId(), documents.size(), System.currentTimeMillis() - startMs);
-        } catch (Exception e) {
-            String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            addStep(context, AgentActionType.RAG_SEARCH, "rag", query,
-                    "RAG failed: " + reason, System.currentTimeMillis() - startMs,
-                    "RAG retrieval failed.");
-            log.warn("Agent RAG search failed, sessionId={}, reason={}", context.getRequest().getSessionId(), reason);
-        }
     }
 
     private boolean callTools(AgentContext context, List<ToolCallSpec> toolCalls, Set<String> calledToolSignatures) {
@@ -205,6 +173,12 @@ public class DefaultAgent implements Agent {
         for (ToolCallSpec callSpec : toolCalls) {
             String toolName = callSpec.getToolName();
             Map<String, Object> arguments = safeArguments(callSpec.getArguments());
+            if (isKnowledgeSearchTool(toolName) && !isKnowledgeSearchEnabled(context.getRequest())) {
+                addStep(context, AgentActionType.MCP_TOOL_CALL, toolName, arguments.toString(),
+                        "Knowledge search disabled for this request.", 0L,
+                        "Skipped knowledge_search because it is disabled.");
+                continue;
+            }
             String signature = toolName + ":" + arguments;
             if (calledToolSignatures.contains(signature)) {
                 continue;
@@ -245,7 +219,7 @@ public class DefaultAgent implements Agent {
                 .messages(List.of(ChatMessage.user(prompt)))
                 .temperature(0.2D)
                 .topP(0.8D)
-                .thinking(false)
+                .thinking(context.getRequest().isDeepThinking())
                 .build();
         String answer = llmService.chat(chatRequest, properties.getAnswer().getModel());
         addStep(context, AgentActionType.LLM_ANSWER, "final-answer", "", answer,
@@ -298,13 +272,53 @@ public class DefaultAgent implements Agent {
         return arguments == null ? new LinkedHashMap<>() : new LinkedHashMap<>(arguments);
     }
 
+    private void adaptLegacyRagPlan(AgentPlan plan, AgentContext context) {
+        if (plan == null || !plan.isNeedRag()) {
+            return;
+        }
+        if (plan.getToolCalls() == null) {
+            plan.setToolCalls(new ArrayList<>());
+        } else {
+            plan.setToolCalls(new ArrayList<>(plan.getToolCalls()));
+        }
+        if (plan.getToolCalls().stream().noneMatch(call -> isKnowledgeSearchTool(call.getToolName()))) {
+            plan.getToolCalls().add(knowledgeSearchCall(context));
+        }
+        plan.setNeedTool(true);
+        plan.setNeedRag(false);
+    }
+
+    private ToolCallSpec knowledgeSearchCall(AgentContext context) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("query", context.getRequest().getUserInput());
+        Map<String, Object> metadata = context.getRequest().getMetadata();
+        copyMetadataArgument(metadata, arguments, "topK");
+        copyMetadataArgument(metadata, arguments, "collectionName");
+        copyMetadataArgument(metadata, arguments, "metadataFilters");
+        return ToolCallSpec.builder()
+                .toolName(AgentToolNames.KNOWLEDGE_SEARCH)
+                .arguments(arguments)
+                .build();
+    }
+
+    private void copyMetadataArgument(Map<String, Object> metadata, Map<String, Object> arguments, String key) {
+        if (metadata != null && metadata.containsKey(key)) {
+            arguments.put(key, metadata.get(key));
+        }
+    }
+
+    private boolean isKnowledgeSearchEnabled(AgentRequest request) {
+        return properties.getRag().isEnabled() && request.isEnableRag();
+    }
+
+    private boolean isKnowledgeSearchTool(String toolName) {
+        return AgentToolNames.KNOWLEDGE_SEARCH.equals(toolName);
+    }
+
     private String summarizePlan(AgentPlan plan) {
         List<String> parts = new ArrayList<>();
         if (plan.isShouldAnswerDirectly()) {
             parts.add("direct");
-        }
-        if (plan.isNeedRag()) {
-            parts.add("rag");
         }
         if (plan.isNeedTool()) {
             parts.add("tools=" + (plan.getToolCalls() == null ? 0 : plan.getToolCalls().size()));

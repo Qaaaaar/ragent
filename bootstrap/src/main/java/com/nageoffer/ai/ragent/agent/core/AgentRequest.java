@@ -45,5 +45,7 @@ public class AgentRequest {
     @Default
     private boolean enableToolCalling = true;
 
+    private boolean deepThinking;
+
     private int maxIterations;
 }

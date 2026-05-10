@@ -21,6 +21,7 @@ import com.nageoffer.ai.ragent.agent.core.AgentContext;
 import com.nageoffer.ai.ragent.agent.memory.MemoryMessage;
 import com.nageoffer.ai.ragent.agent.rag.AgentDocument;
 import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -42,7 +43,7 @@ public class AgentPromptBuilder {
         prompt.append("Return only a JSON object. Do not answer the user.\n\n");
         prompt.append("JSON schema:\n");
         prompt.append("{\n");
-        prompt.append("  \"needRag\": true|false,\n");
+        prompt.append("  \"needRag\": false,\n");
         prompt.append("  \"needTool\": true|false,\n");
         prompt.append("  \"toolCalls\": [{\"toolName\":\"name\", \"arguments\": {}}],\n");
         prompt.append("  \"shouldAnswerDirectly\": true|false,\n");
@@ -51,10 +52,12 @@ public class AgentPromptBuilder {
         prompt.append("  \"maxIterations\": 3\n");
         prompt.append("}\n\n");
         prompt.append("Rules:\n");
-        prompt.append("- Use RAG for knowledge base, documents, internal material, citations, policies, or project-specific facts.\n");
-        prompt.append("- Use tools for external systems, live status, files, APIs, tickets, weather, sales, database or MCP capabilities.\n");
-        prompt.append("- Use both when the answer needs document context and tool output.\n");
+        prompt.append("- All external capabilities are tools. Do not use a separate RAG path.\n");
+        prompt.append("- Use ").append(AgentToolNames.KNOWLEDGE_SEARCH).append(" for knowledge base, documents, internal material, citations, policies, manuals, or project-specific facts.\n");
+        prompt.append("- Use other MCP tools for external systems, live status, files, APIs, tickets, weather, sales, or database capabilities.\n");
+        prompt.append("- Use multiple tools when the answer needs both document evidence and business system output.\n");
         prompt.append("- shouldAnswerDirectly is true only for simple chat or general explanation.\n");
+        prompt.append("- Keep needRag false; knowledge retrieval must appear as a ").append(AgentToolNames.KNOWLEDGE_SEARCH).append(" tool call.\n");
         prompt.append("- reasoningSummary must be brief and must not reveal hidden reasoning.\n\n");
         prompt.append("User input:\n").append(context.getRequest().getUserInput()).append("\n\n");
         prompt.append("Recent memory:\n").append(formatMemory(context.getMemoryMessages())).append("\n\n");
@@ -74,17 +77,18 @@ public class AgentPromptBuilder {
 
     public String buildFinalAnswerPrompt(AgentContext context) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are the final answer generator for a Java Agentic RAG system.\n");
+        prompt.append("You are the final answer generator for a Java Agent system.\n");
         prompt.append("Answer directly in the user's language.\n\n");
         prompt.append("Requirements:\n");
-        prompt.append("- Use the user question, memory, RAG context, and MCP tool results below.\n");
-        prompt.append("- If RAG context is insufficient, say the available evidence is insufficient.\n");
+        prompt.append("- Use the user question, memory, legacy retrieved context, and MCP tool results below.\n");
+        prompt.append("- Treat ").append(AgentToolNames.KNOWLEDGE_SEARCH).append(" results as knowledge-base grounding evidence.\n");
+        prompt.append("- If knowledge evidence is insufficient, say the available evidence is insufficient.\n");
         prompt.append("- Do not invent tool results.\n");
         prompt.append("- If a tool call failed, mention the failure reason and provide the best alternative answer possible.\n");
         prompt.append("- Keep the answer focused on the user's question.\n\n");
         prompt.append("User question:\n").append(context.getRequest().getUserInput()).append("\n\n");
         prompt.append("Memory summary:\n").append(formatMemory(context.getMemoryMessages())).append("\n\n");
-        prompt.append("RAG context:\n").append(formatDocuments(context.getRetrievedContext())).append("\n\n");
+        prompt.append("Legacy retrieved context:\n").append(formatDocuments(context.getRetrievedContext())).append("\n\n");
         prompt.append("MCP tool results:\n").append(formatToolResults(context.getToolResults())).append("\n");
         return prompt.toString();
     }

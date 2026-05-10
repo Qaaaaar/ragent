@@ -23,6 +23,7 @@ import com.nageoffer.ai.ragent.agent.core.AgentContext;
 import com.nageoffer.ai.ragent.agent.core.AgentProperties;
 import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
 import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
@@ -46,14 +47,19 @@ import java.util.Map;
 @ConditionalOnProperty(name = "agent.enabled", havingValue = "true", matchIfMissing = true)
 public class DefaultAgentPlanner implements AgentPlanner {
 
-    private static final List<String> RAG_KEYWORDS = List.of(
-            "knowledge", "document", "docs", "reference", "citation", "policy", "manual", "internal",
-            "知识库", "文档", "资料", "依据", "引用", "内部", "项目", "规范", "制度", "手册", "流程"
+    private static final List<String> KNOWLEDGE_KEYWORDS = List.of(
+            "knowledge", "document", "documents", "docs", "reference", "citation", "policy", "manual",
+            "internal", "project", "standard", "procedure",
+            "\u77e5\u8bc6\u5e93", "\u6587\u6863", "\u8d44\u6599", "\u4f9d\u636e", "\u5f15\u7528",
+            "\u5185\u90e8", "\u9879\u76ee", "\u89c4\u8303", "\u5236\u5ea6", "\u624b\u518c", "\u6d41\u7a0b"
     );
+
     private static final List<String> TOOL_KEYWORDS = List.of(
             "mcp", "tool", "api", "database", "file", "status", "live", "real-time", "ticket", "weather",
             "sales", "order", "query system", "external system",
-            "工具", "外部系统", "实时", "状态", "天气", "工单", "订单", "接口", "数据库", "文件", "销售", "查询系统"
+            "\u5de5\u5177", "\u5916\u90e8\u7cfb\u7edf", "\u5b9e\u65f6", "\u72b6\u6001", "\u5929\u6c14",
+            "\u5de5\u5355", "\u8ba2\u5355", "\u63a5\u53e3", "\u6570\u636e\u5e93", "\u6587\u4ef6",
+            "\u9500\u552e", "\u67e5\u8be2\u7cfb\u7edf"
     );
 
     private final LLMService llmService;
@@ -97,14 +103,24 @@ public class DefaultAgentPlanner implements AgentPlanner {
                 ? context.getRequest().getUserInput()
                 : "";
         String normalized = userInput == null ? "" : userInput.toLowerCase(Locale.ROOT);
-        boolean needRag = containsAny(normalized, RAG_KEYWORDS);
+        boolean needKnowledge = containsAny(normalized, KNOWLEDGE_KEYWORDS) && hasTool(AgentToolNames.KNOWLEDGE_SEARCH);
         boolean needTool = containsAny(normalized, TOOL_KEYWORDS) && toolRegistry.size() > 0;
-        List<ToolCallSpec> toolCalls = needTool ? List.of(defaultToolCall(normalized, userInput)) : List.of();
+        List<ToolCallSpec> toolCalls = new ArrayList<>();
+        if (needKnowledge) {
+            toolCalls.add(knowledgeSearchCall(userInput));
+        }
+        if (needTool) {
+            ToolCallSpec call = defaultToolCall(normalized, userInput);
+            if (call.getToolName() != null
+                    && toolCalls.stream().noneMatch(existing -> call.getToolName().equals(existing.getToolName()))) {
+                toolCalls.add(call);
+            }
+        }
         return AgentPlan.builder()
-                .needRag(needRag)
-                .needTool(needTool)
+                .needRag(false)
+                .needTool(!toolCalls.isEmpty())
                 .toolCalls(toolCalls)
-                .shouldAnswerDirectly(!needRag && !needTool)
+                .shouldAnswerDirectly(toolCalls.isEmpty())
                 .reasoningSummary("Fallback planner selected actions from request keywords.")
                 .maxIterations(properties.getMaxIterations())
                 .build();
@@ -117,6 +133,13 @@ public class DefaultAgentPlanner implements AgentPlanner {
         }
         if (safePlan.getMaxIterations() <= 0) {
             safePlan.setMaxIterations(properties.getMaxIterations());
+        }
+        if (safePlan.isNeedRag()) {
+            addKnowledgeSearchCall(safePlan, context.getRequest().getUserInput());
+            safePlan.setNeedRag(false);
+        }
+        if (!safePlan.getToolCalls().isEmpty()) {
+            safePlan.setNeedTool(true);
         }
         if (safePlan.isNeedTool() && toolRegistry.size() == 0) {
             safePlan.setNeedTool(false);
@@ -156,7 +179,10 @@ public class DefaultAgentPlanner implements AgentPlanner {
         return tools.stream()
                 .filter(tool -> containsToolHint(normalizedInput, tool))
                 .findFirst()
-                .orElse(tools.get(0));
+                .orElseGet(() -> tools.stream()
+                        .filter(tool -> !AgentToolNames.KNOWLEDGE_SEARCH.equals(tool.name()))
+                        .findFirst()
+                        .orElse(tools.get(0)));
     }
 
     private boolean containsToolHint(String normalizedInput, AgentTool tool) {
@@ -168,6 +194,30 @@ public class DefaultAgentPlanner implements AgentPlanner {
 
     private boolean containsAny(String text, List<String> keywords) {
         return keywords.stream().anyMatch(text::contains);
+    }
+
+    private boolean hasTool(String toolName) {
+        return toolRegistry.findByName(toolName).isPresent();
+    }
+
+    private void addKnowledgeSearchCall(AgentPlan plan, String userInput) {
+        if (!hasTool(AgentToolNames.KNOWLEDGE_SEARCH)) {
+            return;
+        }
+        if (plan.getToolCalls().stream().anyMatch(call -> AgentToolNames.KNOWLEDGE_SEARCH.equals(call.getToolName()))) {
+            return;
+        }
+        plan.getToolCalls().add(knowledgeSearchCall(userInput));
+        plan.setNeedTool(true);
+    }
+
+    private ToolCallSpec knowledgeSearchCall(String userInput) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("query", userInput);
+        return ToolCallSpec.builder()
+                .toolName(AgentToolNames.KNOWLEDGE_SEARCH)
+                .arguments(arguments)
+                .build();
     }
 
     private String extractJsonObject(String cleaned) {

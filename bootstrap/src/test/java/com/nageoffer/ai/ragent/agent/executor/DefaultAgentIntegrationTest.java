@@ -26,9 +26,8 @@ import com.nageoffer.ai.ragent.agent.planner.AgentPlan;
 import com.nageoffer.ai.ragent.agent.planner.AgentPlanner;
 import com.nageoffer.ai.ragent.agent.planner.ToolCallSpec;
 import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
-import com.nageoffer.ai.ragent.agent.rag.AgentDocument;
-import com.nageoffer.ai.ragent.agent.rag.AgentRagRetriever;
 import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
 import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
@@ -53,41 +52,38 @@ class DefaultAgentIntegrationTest {
 
     @Test
     void shouldAnswerDirectly() {
-        CountingRagRetriever ragRetriever = new CountingRagRetriever();
         StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(fixedPlanner(directPlan()), ragRetriever, tool, new StubLlmService("direct final"), 3);
+        DefaultAgent agent = newAgent(fixedPlanner(directPlan()), new StubLlmService("direct final"), 3, tool);
 
         AgentResponse response = agent.run(request("hello", 3));
 
         assertTrue(response.isSuccess());
         assertEquals("direct final", response.getAnswer());
-        assertEquals(0, ragRetriever.calls);
         assertEquals(0, tool.calls);
     }
 
     @Test
-    void shouldRunRagPath() {
-        CountingRagRetriever ragRetriever = new CountingRagRetriever();
-        DefaultAgent agent = newAgent(fixedPlanner(ragPlan()), ragRetriever, StubAgentTool.success("weather"), new StubLlmService("rag final"), 3);
+    void shouldConvertLegacyRagPathToKnowledgeTool() {
+        StubAgentTool knowledgeTool = StubAgentTool.success(AgentToolNames.KNOWLEDGE_SEARCH);
+        DefaultAgent agent = newAgent(fixedPlanner(ragPlan()), new StubLlmService("rag final"), 3, knowledgeTool);
 
         AgentResponse response = agent.run(request("use documents", 3));
 
         assertTrue(response.isSuccess());
-        assertEquals(1, ragRetriever.calls);
-        assertEquals(1, response.getRetrievedContext().size());
+        assertEquals(1, knowledgeTool.calls);
+        assertEquals(1, response.getToolResults().size());
+        assertEquals(AgentToolNames.KNOWLEDGE_SEARCH, response.getToolResults().get(0).getToolName());
     }
 
     @Test
     void shouldRunMcpToolPath() {
-        CountingRagRetriever ragRetriever = new CountingRagRetriever();
         StubAgentTool tool = StubAgentTool.success("weather");
         DefaultAgent agent = newAgent(fixedPlanner(toolPlan("weather", Map.of("city", "Hangzhou"))),
-                ragRetriever, tool, new StubLlmService("tool final"), 3);
+                new StubLlmService("tool final"), 3, tool);
 
         AgentResponse response = agent.run(request("weather", 3));
 
         assertTrue(response.isSuccess());
-        assertEquals(0, ragRetriever.calls);
         assertEquals(1, tool.calls);
         assertEquals(1, response.getToolResults().size());
         assertTrue(response.getToolResults().get(0).isSuccess());
@@ -95,25 +91,24 @@ class DefaultAgentIntegrationTest {
 
     @Test
     void shouldRunRagAndMcpCombinedPath() {
-        CountingRagRetriever ragRetriever = new CountingRagRetriever();
+        StubAgentTool knowledgeTool = StubAgentTool.success(AgentToolNames.KNOWLEDGE_SEARCH);
         StubAgentTool tool = StubAgentTool.success("weather");
         DefaultAgent agent = newAgent(fixedPlanner(ragAndToolPlan("weather")),
-                ragRetriever, tool, new StubLlmService("combined final"), 3);
+                new StubLlmService("combined final"), 3, knowledgeTool, tool);
 
         AgentResponse response = agent.run(request("docs plus weather", 3));
 
         assertTrue(response.isSuccess());
-        assertEquals(1, ragRetriever.calls);
+        assertEquals(1, knowledgeTool.calls);
         assertEquals(1, tool.calls);
-        assertEquals(1, response.getRetrievedContext().size());
-        assertEquals(1, response.getToolResults().size());
+        assertEquals(2, response.getToolResults().size());
     }
 
     @Test
     void shouldContinueToFinalAnswerWhenToolFails() {
         StubAgentTool tool = StubAgentTool.failure("weather");
         DefaultAgent agent = newAgent(fixedPlanner(toolPlan("weather", Map.of("city", "Hangzhou"))),
-                new CountingRagRetriever(), tool, new StubLlmService("fallback final"), 3);
+                new StubLlmService("fallback final"), 3, tool);
 
         AgentResponse response = agent.run(request("weather", 3));
 
@@ -126,7 +121,7 @@ class DefaultAgentIntegrationTest {
     @Test
     void shouldStopAtMaxIterations() {
         StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(new CountingToolPlanner(), new CountingRagRetriever(), tool, new StubLlmService("max final"), 2);
+        DefaultAgent agent = newAgent(new CountingToolPlanner(), new StubLlmService("max final"), 2, tool);
 
         AgentResponse response = agent.run(request("keep using tool", 2));
 
@@ -136,20 +131,20 @@ class DefaultAgentIntegrationTest {
         assertTrue(response.getSteps().stream().anyMatch(step -> "max-iterations".equals(step.getActionName())));
     }
 
-    private DefaultAgent newAgent(AgentPlanner planner, AgentRagRetriever ragRetriever,
-                                  AgentTool tool, LLMService llmService, int maxIterations) {
+    private DefaultAgent newAgent(AgentPlanner planner, LLMService llmService, int maxIterations, AgentTool... tools) {
         AgentProperties properties = new AgentProperties();
         properties.setMaxIterations(maxIterations);
         properties.getMemory().setMaxMessages(20);
         ToolRegistry toolRegistry = new ToolRegistry(new EmptyMcpToolRegistry());
-        if (tool != null) {
-            toolRegistry.register(tool);
+        for (AgentTool tool : tools) {
+            if (tool != null) {
+                toolRegistry.register(tool);
+            }
         }
         return new DefaultAgent(
                 properties,
                 planner,
                 new InMemoryAgentMemory(properties),
-                ragRetriever,
                 toolRegistry,
                 new AgentPromptBuilder(),
                 llmService
@@ -225,22 +220,6 @@ class DefaultAgentIntegrationTest {
                     .reasoningSummary("Need another tool call.")
                     .maxIterations(2)
                     .build();
-        }
-    }
-
-    private static class CountingRagRetriever implements AgentRagRetriever {
-
-        private int calls;
-
-        @Override
-        public List<AgentDocument> retrieve(String query, AgentContext context) {
-            calls++;
-            return List.of(AgentDocument.builder()
-                    .id("doc-1")
-                    .content("retrieved context")
-                    .source("test")
-                    .score(0.9D)
-                    .build());
         }
     }
 

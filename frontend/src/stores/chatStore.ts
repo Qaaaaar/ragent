@@ -264,7 +264,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversationId: conversationId || undefined,
       deepThinking: deepThinkingEnabled ? true : undefined
     });
-    const url = `${API_BASE_URL}/rag/v3/chat${query}`;
+    const url = `${API_BASE_URL}/agent/v1/chat${query}`;
     const token = storage.getToken();
 
     const handlers = {

@@ -80,7 +80,7 @@ export function SystemSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>RAG 默认配置</CardTitle>
+          <CardTitle>Knowledge Tool 默认配置</CardTitle>
           <CardDescription>向量空间与检索基础参数</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">

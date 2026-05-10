@@ -1,7 +1,7 @@
 import { api } from "@/services/api";
 
 export async function stopTask(taskId: string) {
-  return api.post<void>(`/rag/v3/stop?taskId=${encodeURIComponent(taskId)}`);
+  return api.post<void>(`/agent/v1/stop?taskId=${encodeURIComponent(taskId)}`);
 }
 
 export async function submitFeedback(messageId: string, vote: number) {

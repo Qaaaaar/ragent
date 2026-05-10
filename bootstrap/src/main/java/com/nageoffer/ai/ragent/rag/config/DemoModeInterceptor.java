@@ -46,7 +46,7 @@ public class DemoModeInterceptor implements HandlerInterceptor {
     /**
      * 需要拦截的 SSE 流式接口路径
      */
-    private static final Set<String> SSE_PATHS = Set.of("/rag/v3/chat");
+    private static final Set<String> SSE_PATHS = Set.of("/agent/v1/chat", "/rag/v3/chat");
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request,

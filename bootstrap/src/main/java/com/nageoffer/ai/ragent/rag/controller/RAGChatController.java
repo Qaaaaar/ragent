@@ -17,11 +17,11 @@
 
 package com.nageoffer.ai.ragent.rag.controller;
 
+import com.nageoffer.ai.ragent.agent.service.AgentChatService;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.idempotent.IdempotentSubmit;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.rag.config.RAGDefaultProperties;
-import com.nageoffer.ai.ragent.rag.service.RAGChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,7 +37,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class RAGChatController {
 
-    private final RAGChatService ragChatService;
+    private final AgentChatService agentChatService;
     private final RAGDefaultProperties ragDefaultProperties;
 
     /**
@@ -52,7 +52,7 @@ public class RAGChatController {
                            @RequestParam(required = false) String conversationId,
                            @RequestParam(required = false, defaultValue = "false") Boolean deepThinking) {
         SseEmitter emitter = new SseEmitter(ragDefaultProperties.getSseTimeoutMs());
-        ragChatService.streamChat(question, conversationId, deepThinking, emitter);
+        agentChatService.streamChat(question, conversationId, deepThinking, emitter);
         return emitter;
     }
 
@@ -62,7 +62,7 @@ public class RAGChatController {
     @IdempotentSubmit
     @PostMapping(value = "/rag/v3/stop")
     public Result<Void> stop(@RequestParam String taskId) {
-        ragChatService.stopTask(taskId);
+        agentChatService.stopTask(taskId);
         return Results.success();
     }
 }

@@ -22,6 +22,7 @@ import com.nageoffer.ai.ragent.agent.core.AgentProperties;
 import com.nageoffer.ai.ragent.agent.core.AgentRequest;
 import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
 import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
 import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
@@ -44,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DefaultAgentPlannerTest {
 
     @Test
-    void shouldParseJsonPlanFromLlm() {
+    void shouldParseLegacyRagJsonPlanAsKnowledgeSearchTool() {
         StubLlmService llmService = new StubLlmService("""
                 {
                   "needRag": true,
@@ -55,32 +56,43 @@ class DefaultAgentPlannerTest {
                   "maxIterations": 2
                 }
                 """);
-        ToolRegistry registry = toolRegistryWith(new StubAgentTool("weather", "weather lookup"));
+        ToolRegistry registry = toolRegistryWith(
+                new StubAgentTool(AgentToolNames.KNOWLEDGE_SEARCH, "knowledge base search"),
+                new StubAgentTool("weather", "weather lookup")
+        );
         DefaultAgentPlanner planner = new DefaultAgentPlanner(llmService, registry, new AgentPromptBuilder(), new AgentProperties());
 
         AgentPlan plan = planner.plan(context("Please use docs and weather tool"));
 
-        assertTrue(plan.isNeedRag());
+        assertFalse(plan.isNeedRag());
         assertTrue(plan.isNeedTool());
         assertFalse(plan.isShouldAnswerDirectly());
-        assertEquals(1, plan.getToolCalls().size());
+        assertEquals(2, plan.getToolCalls().size());
         assertEquals("weather", plan.getToolCalls().get(0).getToolName());
         assertEquals("Hangzhou", plan.getToolCalls().get(0).getArguments().get("city"));
+        assertEquals(AgentToolNames.KNOWLEDGE_SEARCH, plan.getToolCalls().get(1).getToolName());
         assertEquals(2, plan.getMaxIterations());
     }
 
     @Test
-    void shouldFallbackToRulesWhenPlannerJsonFails() {
+    void shouldFallbackToKnowledgeSearchAndMcpToolsWhenPlannerJsonFails() {
         StubLlmService llmService = new StubLlmService("not json");
-        ToolRegistry registry = toolRegistryWith(new StubAgentTool("ticket", "ticket status lookup"));
+        ToolRegistry registry = toolRegistryWith(
+                new StubAgentTool(AgentToolNames.KNOWLEDGE_SEARCH, "knowledge base search"),
+                new StubAgentTool("ticket", "ticket status lookup")
+        );
         DefaultAgentPlanner planner = new DefaultAgentPlanner(llmService, registry, new AgentPromptBuilder(), new AgentProperties());
 
-        AgentPlan plan = planner.plan(context("查询内部文档依据，并查看实时工单状态"));
+        AgentPlan plan = planner.plan(context("internal document ticket status"));
 
-        assertTrue(plan.isNeedRag());
+        assertFalse(plan.isNeedRag());
         assertTrue(plan.isNeedTool());
         assertFalse(plan.isShouldAnswerDirectly());
-        assertEquals(1, plan.getToolCalls().size());
+        assertEquals(2, plan.getToolCalls().size());
+        assertTrue(plan.getToolCalls().stream()
+                .anyMatch(call -> AgentToolNames.KNOWLEDGE_SEARCH.equals(call.getToolName())));
+        assertTrue(plan.getToolCalls().stream()
+                .anyMatch(call -> "ticket".equals(call.getToolName())));
     }
 
     private AgentContext context(String userInput) {
@@ -92,9 +104,11 @@ class DefaultAgentPlannerTest {
                 .build();
     }
 
-    private ToolRegistry toolRegistryWith(AgentTool tool) {
+    private ToolRegistry toolRegistryWith(AgentTool... tools) {
         ToolRegistry registry = new ToolRegistry(new EmptyMcpToolRegistry());
-        registry.register(tool);
+        for (AgentTool tool : tools) {
+            registry.register(tool);
+        }
         return registry;
     }
 

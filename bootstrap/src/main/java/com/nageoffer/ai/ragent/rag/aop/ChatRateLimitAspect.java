@@ -91,7 +91,7 @@ public class ChatRateLimitAspect {
         long startMillis = System.currentTimeMillis();
         traceRecordService.startRun(RagTraceRunDO.builder()
                 .traceId(traceId)
-                .traceName("rag-stream-chat")
+                .traceName(resolveTraceName(method))
                 .entryMethod(method.getDeclaringClass().getName() + "#" + method.getName())
                 .conversationId(conversationId)
                 .taskId(taskId)
@@ -144,6 +144,14 @@ public class ChatRateLimitAspect {
             return invocationTargetException.getTargetException();
         }
         return throwable;
+    }
+
+    private String resolveTraceName(Method method) {
+        String className = method.getDeclaringClass().getSimpleName();
+        if (className.contains("Agent")) {
+            return "agent-stream-chat";
+        }
+        return "rag-stream-chat";
     }
 
     private String truncateError(Throwable throwable) {

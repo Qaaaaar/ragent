@@ -356,7 +356,7 @@ export function RagTraceDetailPage() {
                   to="/admin/traces"
                   className="text-slate-500 hover:text-slate-700 transition-colors"
               >
-                RAG 链路列表
+                Agent 链路列表
               </Link>
               <span className="text-slate-300">/</span>
             </div>

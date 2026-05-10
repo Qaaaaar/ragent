@@ -35,6 +35,7 @@ class AgentRequestResponseTest {
                 .userInput("hello")
                 .sessionId("s1")
                 .metadata(Map.of("topK", 3))
+                .deepThinking(true)
                 .maxIterations(2)
                 .build();
 
@@ -49,6 +50,7 @@ class AgentRequestResponseTest {
         assertEquals("hello", request.getUserInput());
         assertTrue(request.isEnableRag());
         assertTrue(request.isEnableToolCalling());
+        assertTrue(request.isDeepThinking());
         assertEquals(3, request.getMetadata().get("topK"));
         assertEquals("world", response.getAnswer());
         assertEquals(1, response.getSteps().size());
