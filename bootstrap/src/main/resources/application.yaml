@@ -17,7 +17,7 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     username: postgres
     password: postgres
-    url: jdbc:postgresql://114.132.204.124:5432/ragent?client_encoding=UTF8
+    url: jdbc:postgresql://localhost:5432/ragent?client_encoding=UTF8
     hikari:
       connection-timeout: 5000
       idle-timeout: 600000
