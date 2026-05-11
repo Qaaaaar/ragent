@@ -81,7 +81,7 @@ export function SystemSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Knowledge Tool 默认配置</CardTitle>
-          <CardDescription>向量空间与检索基础参数</CardDescription>
+          <CardDescription>学习资料向量空间与检索基础参数</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <InfoItem label="Collection" value={rag.default.collectionName} />

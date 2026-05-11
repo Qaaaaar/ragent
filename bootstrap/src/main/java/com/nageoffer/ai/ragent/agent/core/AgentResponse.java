@@ -48,4 +48,6 @@ public class AgentResponse {
     private boolean success;
 
     private String errorMessage;
+
+    private boolean clarificationRequired;
 }

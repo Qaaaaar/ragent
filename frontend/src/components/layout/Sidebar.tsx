@@ -73,7 +73,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return sessions;
     return sessions.filter((session) => {
-      const title = (session.title || "新对话").toLowerCase();
+      const title = (session.title || "新问答会话").toLowerCase();
       return title.includes(keyword) || session.id.toLowerCase().includes(keyword);
     });
   }, [query, sessions]);
@@ -127,7 +127,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const startRename = (id: string, title: string) => {
     setRenamingId(id);
-    setRenameValue(title || "新对话");
+    setRenameValue(title || "新问答会话");
   };
 
   const cancelRename = () => {
@@ -142,7 +142,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       cancelRename();
       return;
     }
-    const currentTitle = sessions.find((session) => session.id === renamingId)?.title || "新对话";
+    const currentTitle = sessions.find((session) => session.id === renamingId)?.title || "新问答会话";
     if (nextTitle === currentTitle) {
       cancelRename();
       return;
@@ -168,30 +168,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         <div className="border-b border-[#F0F0F0] pb-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#3B82F6]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0F766E]">
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div style={{ fontFamily: sessionTitleFont }}>
-              <p className="text-base font-semibold text-[#1A1A1A]">Ragent AI 智能体</p>
-              <p className="text-xs text-[#999999]">Powered by AI</p>
+              <p className="text-base font-semibold text-[#1A1A1A]">个人知识库 Agent</p>
+              <p className="text-xs text-[#999999]">Personal Knowledge</p>
             </div>
           </div>
         </div>
         <div className="py-3 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-[#E6EEF6] bg-gradient-to-br from-[#F0F9FF] via-white to-[#FEF3C7] p-3 shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
-            <span
-              aria-hidden="true"
-              className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[#BAE6FD]/70 blur-2xl"
-            />
-            <span
-              aria-hidden="true"
-              className="absolute -left-12 -bottom-10 h-28 w-28 rounded-full bg-[#FDE68A]/70 blur-2xl"
-            />
+          <div className="relative overflow-hidden rounded-2xl border border-[#D9F0EA] bg-gradient-to-br from-[#ECFDF5] via-white to-[#FFF7ED] p-3 shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
             <div className="relative">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-semibold text-[#94A3B8]">快速开始</span>
-                <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-[#2563EB]">
-                  新内容
+                <span className="text-[11px] font-semibold text-[#64748B]">问答工作台</span>
+                <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-[#0F766E]">
+                  Agent
                 </span>
               </div>
               <button
@@ -203,12 +195,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   onClose();
                 }}
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60A5FA] to-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.3)]">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#14B8A6] to-[#0F766E] text-white shadow-[0_6px_14px_rgba(15,118,110,0.28)]">
                   <Plus className="h-4 w-4" />
                 </span>
                 <span className="flex-1">
-                  <span className="block text-sm font-semibold text-[#1F2937]">新建对话</span>
-                  <span className="block text-xs text-[#94A3B8]">从空白开始</span>
+                  <span className="block text-sm font-semibold text-[#1F2937]">新建问答会话</span>
+                  <span className="block text-xs text-[#94A3B8]">检索课程笔记、论文和技术文档</span>
                 </span>
               </button>
               {user?.role === "admin" ? (
@@ -221,14 +213,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   }}
                 >
                   <Settings className="h-3.5 w-3.5" />
-                  管理后台
+                  知识库控制台
                 </button>
               ) : null}
             </div>
           </div>
           <div className="rounded-2xl border border-[#E6EEF6] bg-white p-3 shadow-[0_12px_26px_rgba(15,23,42,0.06)]">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-semibold text-[#94A3B8]">搜索对话</span>
+              <span className="text-[11px] font-semibold text-[#94A3B8]">搜索问答会话</span>
               <span className="text-[10px] text-[#CBD5F5]">Ctrl / Cmd + K</span>
             </div>
             <div className="mt-2">
@@ -237,8 +229,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="搜索对话..."
-                  className="h-10 w-full rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] pl-9 pr-3 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] focus:border-[#93C5FD] focus:outline-none transition-colors"
+                  placeholder="搜索文档主题、问题或会话..."
+                  className="h-10 w-full rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] pl-9 pr-3 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] focus:border-[#5EEAD4] focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -251,7 +243,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="flex h-full items-center justify-center text-[#999999]"
                 style={{ fontFamily: sessionTitleFont }}
               >
-                <Loading label="加载会话中" />
+                <Loading label="加载问答会话中" />
               </div>
             ) : filteredSessions.length === 0 ? (
               <div
@@ -259,7 +251,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 style={{ fontFamily: sessionTitleFont }}
               >
                 <MessageSquare className="h-16 w-16" />
-                <p className="mt-2 text-[14px]">暂无对话记录</p>
+                <p className="mt-2 text-[14px]">暂无问答会话</p>
               </div>
             ) : (
               <div>
@@ -274,7 +266,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         className={cn(
                           "group my-[1px] flex min-h-[40px] cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-[14px] leading-[22px] transition-colors duration-200",
                           currentSessionId === session.id
-                            ? "bg-[#DBEAFE] text-[#2563EB]"
+                            ? "bg-[#CCFBF1] text-[#0F766E]"
                             : "text-[#333333] hover:bg-[#F5F5F5]"
                         )}
                         role="button"
@@ -315,11 +307,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             onBlur={() => {
                               commitRename().catch(() => null);
                             }}
-                            className="h-6 flex-1 rounded-md border border-[#E5E5E5] bg-white px-2 text-[14px] leading-[22px] text-[#333333] focus:border-[#2563EB] focus:outline-none"
+                            className="h-6 flex-1 rounded-md border border-[#E5E5E5] bg-white px-2 text-[14px] leading-[22px] text-[#333333] focus:border-[#0F766E] focus:outline-none"
                           />
                         ) : (
                           <span className="min-w-0 flex-1 truncate font-normal">
-                            {session.title || "新对话"}
+                            {session.title || "新问答会话"}
                           </span>
                         )}
                         <DropdownMenu>
@@ -329,7 +321,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                               className={cn(
                                 "flex h-6 w-6 items-center justify-center rounded text-[#666666] transition-opacity duration-150 hover:bg-[rgba(0,0,0,0.06)]",
                                 currentSessionId === session.id
-                                  ? "pointer-events-auto opacity-100 text-[#2563EB]"
+                                  ? "pointer-events-auto opacity-100 text-[#0F766E]"
                                   : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"
                               )}
                               onClick={(event) => event.stopPropagation()}
@@ -345,7 +337,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <DropdownMenuItem
                               onClick={(event) => {
                                 event.stopPropagation();
-                                startRename(session.id, session.title || "新对话");
+                                startRename(session.id, session.title || "新问答会话");
                               }}
                               className="px-4 py-2 text-[14px] text-[#333333] focus:bg-[#F5F5F5] focus:text-[#333333] data-[highlighted]:bg-[#F5F5F5] data-[highlighted]:text-[#333333]"
                             >
@@ -357,7 +349,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 event.stopPropagation();
                                 setDeleteTarget({
                                   id: session.id,
-                                  title: session.title || "新对话"
+                                  title: session.title || "新问答会话"
                                 });
                               }}
                               className="px-4 py-2 text-[14px] text-[#FF4D4F] focus:bg-[#F5F5F5] focus:text-[#FF4D4F] data-[highlighted]:bg-[#F5F5F5] data-[highlighted]:text-[#FF4D4F]"
@@ -387,7 +379,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="flex w-full items-center gap-2 rounded-lg p-2 text-left transition-colors hover:bg-[#F5F5F5] data-[state=open]:bg-[#EEEEEE]"
                 aria-label="用户菜单"
               >
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#3B82F6] text-white">
+                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#0F766E] text-white">
                   {showAvatar ? (
                     <img
                       src={avatarUrl}
@@ -424,9 +416,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除该会话？</AlertDialogTitle>
+            <AlertDialogTitle>删除该问答会话？</AlertDialogTitle>
             <AlertDialogDescription>
-              [{deleteTarget?.title || "该会话"}] 将被永久删除，无法恢复。
+              [{deleteTarget?.title || "该问答会话"}] 将被永久删除，无法恢复。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

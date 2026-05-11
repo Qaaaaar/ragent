@@ -28,7 +28,7 @@ export function SessionItem({ session, active, onSelect, onDelete }: SessionItem
       }}
     >
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{truncate(session.title || "新对话", 36)}</p>
+        <p className="truncate text-sm font-medium">{truncate(session.title || "新问答会话", 36)}</p>
         <p className="text-xs text-muted-foreground">{formatTimestamp(session.lastTime)}</p>
       </div>
       <AlertDialog>
@@ -45,9 +45,9 @@ export function SessionItem({ session, active, onSelect, onDelete }: SessionItem
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除该会话？</AlertDialogTitle>
+            <AlertDialogTitle>删除该问答会话？</AlertDialogTitle>
             <AlertDialogDescription>
-              会话与消息将被永久删除，无法恢复。
+              问答会话与消息将被永久删除，无法恢复。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

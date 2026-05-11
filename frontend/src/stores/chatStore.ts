@@ -1,14 +1,14 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 
-import type { CompletionPayload, FeedbackValue, Message, MessageDeltaPayload, Session } from "@/types";
+import type { CompletionPayload, Message, MessageDeltaPayload, Session } from "@/types";
 import {
   listMessages,
   listSessions,
   deleteSession as deleteSessionRequest,
   renameSession as renameSessionRequest
 } from "@/services/sessionService";
-import { stopTask, submitFeedback } from "@/services/chatService";
+import { stopTask } from "@/services/chatService";
 import { buildQuery } from "@/utils/helpers";
 import { createStreamResponse } from "@/hooks/useStreamResponse";
 import { storage } from "@/utils/storage";
@@ -39,13 +39,6 @@ interface ChatState {
   cancelGeneration: () => void;
   appendStreamContent: (delta: string) => void;
   appendThinkingContent: (delta: string) => void;
-  submitFeedback: (messageId: string, feedback: FeedbackValue) => Promise<void>;
-}
-
-function mapVoteToFeedback(vote?: number | null): FeedbackValue {
-  if (vote === 1) return "like";
-  if (vote === -1) return "dislike";
-  return null;
 }
 
 function upsertSession(sessions: Session[], next: Session) {
@@ -93,7 +86,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const sessions = data
         .map((item) => ({
         id: item.conversationId,
-        title: item.title || "新对话",
+        title: item.title || "新问答会话",
         lastTime: item.lastTime
         }))
         .sort((a, b) => {
@@ -190,7 +183,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         thinkingDuration: item.thinkingDuration || undefined,
         isDeepThinking: Boolean(item.thinkingContent),
         createdAt: item.createTime,
-        feedback: mapVoteToFeedback(item.vote),
         status: "done"
       }));
       set({ messages: mapped });
@@ -244,7 +236,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isDeepThinking: deepThinkingEnabled,
       isThinking: deepThinkingEnabled,
       status: "streaming",
-      feedback: null,
       createdAt: new Date().toISOString()
     };
 
@@ -280,7 +271,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           streamTaskId: payload.taskId,
           sessions: upsertSession(state.sessions, {
             id: nextId,
-            title: existing?.title || "新对话",
+            title: existing?.title || "新问答会话",
             lastTime
           })
         }));
@@ -312,7 +303,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (currentId) {
           const lastTime = new Date().toISOString();
           const existingTitle =
-            get().sessions.find((session) => session.id === currentId)?.title || "新对话";
+            get().sessions.find((session) => session.id === currentId)?.title || "新问答会话";
           const nextTitle = payload.title || existingTitle;
           set((state) => ({
             sessions: upsertSession(state.sessions, {
@@ -499,29 +490,5 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : message
       )
     }));
-  },
-  submitFeedback: async (messageId, feedback) => {
-    const vote = feedback === "like" ? 1 : feedback === "dislike" ? -1 : null;
-    const prev = get().messages.find((message) => message.id === messageId)?.feedback ?? null;
-    set((state) => ({
-      messages: state.messages.map((message) =>
-        message.id === messageId ? { ...message, feedback } : message
-      )
-    }));
-    if (vote === null) {
-      toast.success("取消成功");
-      return;
-    }
-    try {
-      await submitFeedback(messageId, vote);
-      toast.success(feedback === "like" ? "点赞成功" : "点踩成功");
-    } catch (error) {
-      set((state) => ({
-        messages: state.messages.map((message) =>
-          message.id === messageId ? { ...message, feedback: prev } : message
-        )
-      }));
-      toast.error((error as Error).message || "反馈保存失败");
-    }
   }
 }));

@@ -50,7 +50,7 @@ const SOURCE_OPTIONS = [
 
 const PROCESS_MODE_OPTIONS = [
   { value: "chunk", label: "直接分块" },
-  { value: "pipeline", label: "数据通道" }
+  { value: "pipeline", label: "入库通道" }
 ];
 
 const NO_CHUNK_VALUE = -1;
@@ -146,7 +146,7 @@ export function KnowledgeDocumentsPage() {
       const data = await getKnowledgeBase(kbId);
       setKb(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载知识库失败"));
+      toast.error(getErrorMessage(error, "加载个人知识库失败"));
       console.error(error);
     }
   };
@@ -163,7 +163,7 @@ export function KnowledgeDocumentsPage() {
       });
       setPageData(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载文档失败"));
+      toast.error(getErrorMessage(error, "加载知识资料失败"));
       console.error(error);
     } finally {
       setLoading(false);
@@ -279,7 +279,7 @@ export function KnowledgeDocumentsPage() {
     if (!detailTarget) return;
     const nextName = detailName.trim();
     if (!nextName) {
-      toast.error("文档名称不能为空");
+      toast.error("资料名称不能为空");
       return;
     }
     setDetailSaving(true);
@@ -357,7 +357,7 @@ export function KnowledgeDocumentsPage() {
 
   const detailSourceType = detailTarget?.sourceType?.toLowerCase();
   const detailIsUrlSource = detailSourceType === "url";
-  const detailNameLabel = detailIsUrlSource ? "文档名称" : "本地文件";
+  const detailNameLabel = detailIsUrlSource ? "资料名称" : "本地文件";
 
   // 当策略切换时，用默认值填充配置
   const handleDetailStrategyChange = (value: string) => {
@@ -405,18 +405,18 @@ export function KnowledgeDocumentsPage() {
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">文档管理</h1>
+          <h1 className="admin-page-title">知识资料</h1>
           <p className="admin-page-subtitle">
             {kb ? `${kb.name}（${kb.collectionName}）` : kbId}
           </p>
         </div>
         <div className="admin-page-actions">
           <Button variant="outline" onClick={() => navigate("/admin/knowledge")}>
-            返回知识库
+            返回个人知识库
           </Button>
           <Button className="admin-primary-gradient" onClick={() => setUploadOpen(true)}>
             <FileUp className="mr-2 h-4 w-4" />
-            上传文档
+            上传学习资料
           </Button>
         </div>
       </div>
@@ -425,14 +425,14 @@ export function KnowledgeDocumentsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>文档列表</CardTitle>
-              <CardDescription>支持筛选与分块管理</CardDescription>
+              <CardTitle>资料列表</CardTitle>
+              <CardDescription>管理课程笔记、技术文档、论文资料与分块索引</CardDescription>
             </div>
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
               <Input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="搜索文档名称"
+                placeholder="搜索资料名称"
                 className="max-w-xs"
               />
               <Button variant="outline" onClick={handleSearch}>
@@ -468,12 +468,12 @@ export function KnowledgeDocumentsPage() {
           {loading ? (
             <div className="py-8 text-center text-muted-foreground">加载中...</div>
           ) : documents.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">暂无文档</div>
+            <div className="py-8 text-center text-muted-foreground">暂无学习资料</div>
           ) : (
             <Table className="min-w-[1120px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[260px]">文档</TableHead>
+                  <TableHead className="w-[260px]">资料</TableHead>
                   <TableHead className="w-[120px]">来源</TableHead>
                   <TableHead className="w-[120px]">处理模式</TableHead>
                   <TableHead className="w-[120px]">状态</TableHead>
@@ -529,7 +529,7 @@ export function KnowledgeDocumentsPage() {
                             onClick={() => handleToggleEnabled(doc)}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-                              enabled ? "bg-blue-600" : "bg-slate-200"
+                              enabled ? "bg-teal-700" : "bg-slate-200"
                             )}
                           >
                             <span
@@ -556,7 +556,7 @@ export function KnowledgeDocumentsPage() {
                               const detail = await getDocument(String(doc.id));
                               setDetailTarget(detail);
                             } catch (error) {
-                              toast.error(getErrorMessage(error, "加载文档详情失败"));
+                              toast.error(getErrorMessage(error, "加载资料详情失败"));
                             }
                           }}
                           title="编辑"
@@ -636,9 +636,9 @@ export function KnowledgeDocumentsPage() {
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => (!open ? setDeleteTarget(null) : null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除文档？</AlertDialogTitle>
+            <AlertDialogTitle>确认删除学习资料？</AlertDialogTitle>
             <AlertDialogDescription>
-              文档 [{deleteTarget?.docName}] 将被删除，且向量数据会清理。
+              学习资料 [{deleteTarget?.docName}] 将被删除，且向量数据会清理。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -657,12 +657,12 @@ export function KnowledgeDocumentsPage() {
             <AlertDialogDescription>
               {chunkTarget?.chunkCount ? (
                 <>
-                  文档 [{chunkTarget?.docName}] 已有 {chunkTarget.chunkCount} 个分块记录。
+                  学习资料 [{chunkTarget?.docName}] 已有 {chunkTarget.chunkCount} 个分块记录。
                   <br />
                   <span className="font-medium text-amber-600">重新分块会清空原有 Chunk 记录及向量数据。</span>
                 </>
               ) : (
-                <>文档 [{chunkTarget?.docName}] 将开始分块并写入向量库。</>
+                <>学习资料 [{chunkTarget?.docName}] 将开始分块并写入向量库。</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -678,8 +678,8 @@ export function KnowledgeDocumentsPage() {
       <Dialog open={Boolean(detailTarget)} onOpenChange={(open) => (!open ? setDetailTarget(null) : null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sidebar-scroll sm:max-w-[620px]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => { e.preventDefault(); requestAnimationFrame(() => (document.activeElement as HTMLElement)?.blur()); }}>
           <DialogHeader>
-            <DialogTitle>编辑文档</DialogTitle>
-            <DialogDescription>修改文档配置，保存后需重新分块才会生效</DialogDescription>
+            <DialogTitle>编辑学习资料</DialogTitle>
+            <DialogDescription>修改资料配置，保存后需重新分块才会生效</DialogDescription>
           </DialogHeader>
           {detailTarget ? (
             <div className="space-y-4">
@@ -709,7 +709,7 @@ export function KnowledgeDocumentsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-sm font-medium">开启定时拉取</div>
-                        <div className="text-sm text-muted-foreground">开启后按频率自动更新文档</div>
+                        <div className="text-sm text-muted-foreground">开启后按频率自动更新学习资料</div>
                       </div>
                       <Checkbox
                         checked={detailScheduleEnabled}
@@ -739,19 +739,19 @@ export function KnowledgeDocumentsPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="chunk">分块策略</SelectItem>
-                    <SelectItem value="pipeline">数据通道</SelectItem>
+                    <SelectItem value="pipeline">入库通道</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="text-sm text-muted-foreground mt-1">
-                  分块策略：直接分块；数据通道：使用Pipeline清洗
+                  分块策略：直接分块；入库通道：使用 Pipeline 清洗
                 </div>
               </div>
 
               {detailProcessMode === "pipeline" ? (
                 <div>
-                  <div className="text-sm font-medium mb-2">数据通道</div>
+                  <div className="text-sm font-medium mb-2">入库通道</div>
                   <Select value={detailPipelineId} onValueChange={setDetailPipelineId}>
-                    <SelectTrigger><SelectValue placeholder="选择数据通道" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="选择入库通道" /></SelectTrigger>
                     <SelectContent>
                       {detailPipelines.map(p => (
                         <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
@@ -798,7 +798,7 @@ export function KnowledgeDocumentsPage() {
                             onClick={handleDetailNoChunkToggle}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-                              detailNoChunk ? "bg-blue-600" : "bg-slate-200"
+                              detailNoChunk ? "bg-teal-700" : "bg-slate-200"
                             )}
                           >
                             <span
@@ -859,7 +859,7 @@ export function KnowledgeDocumentsPage() {
           <DialogHeader>
             <DialogTitle>分块详情</DialogTitle>
             <DialogDescription>
-              文档 [{logTarget?.docName}] 的分块执行日志
+              学习资料 [{logTarget?.docName}] 的分块执行日志
             </DialogDescription>
           </DialogHeader>
           {logLoading ? (
@@ -868,7 +868,7 @@ export function KnowledgeDocumentsPage() {
             <div className="space-y-4">
               {logData.records.slice(0, 1).map((log) => {
                 const isPipelineLog = log.processMode?.toLowerCase() === "pipeline";
-                const chunkLabel = isPipelineLog ? "数据通道耗时" : "分块耗时";
+                const chunkLabel = isPipelineLog ? "入库通道耗时" : "分块耗时";
                 return (
                 <div key={log.id} className="space-y-4">
                   {/* 状态 + 基本信息 */}
@@ -883,7 +883,7 @@ export function KnowledgeDocumentsPage() {
                         {formatLogStatus(log.status)}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {log.processMode === "pipeline" ? "数据通道" : "直接分块"}
+                        {log.processMode === "pipeline" ? "入库通道" : "直接分块"}
                         {log.processMode === "chunk" && log.chunkStrategy ? ` · ${formatChunkStrategy(log.chunkStrategy)}` : ""}
                         {log.processMode === "pipeline" && (log.pipelineName || log.pipelineId) ? ` · ${log.pipelineName || log.pipelineId}` : ""}
                       </span>
@@ -917,9 +917,9 @@ export function KnowledgeDocumentsPage() {
                       <div className="text-xs text-muted-foreground mb-1">其他</div>
                       <div className="text-lg font-semibold tabular-nums">{formatDuration(log.otherDuration)}</div>
                     </div>
-                    <div className="rounded-lg border bg-blue-50 p-3">
-                      <div className="text-xs text-blue-600 mb-1">总耗时</div>
-                      <div className="text-lg font-bold tabular-nums text-blue-600">{formatDuration(log.totalDuration)}</div>
+                    <div className="rounded-lg border bg-teal-50 p-3">
+                      <div className="text-xs text-teal-700 mb-1">总耗时</div>
+                      <div className="text-lg font-bold tabular-nums text-teal-700">{formatDuration(log.totalDuration)}</div>
                     </div>
                   </div>
 
@@ -1036,7 +1036,7 @@ const uploadSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["pipelineId"],
-          message: "请选择数据通道"
+          message: "请选择入库通道"
         });
       }
     }
@@ -1250,8 +1250,8 @@ function UploadDialog({ open, onOpenChange, onSubmit }: UploadDialogProps) {
         onCloseAutoFocus={(e) => { e.preventDefault(); requestAnimationFrame(() => (document.activeElement as HTMLElement)?.blur()); }}
       >
         <DialogHeader>
-          <DialogTitle>上传文档</DialogTitle>
-          <DialogDescription>支持本地文件或远程URL，并配置分块策略</DialogDescription>
+          <DialogTitle>上传学习资料</DialogTitle>
+          <DialogDescription>支持本地文件或远程 URL，并配置分块策略</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -1293,7 +1293,7 @@ function UploadDialog({ open, onOpenChange, onSubmit }: UploadDialogProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>填写远程文档 URL</FormDescription>
+                    <FormDescription>填写远程学习资料 URL</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1361,7 +1361,7 @@ function UploadDialog({ open, onOpenChange, onSubmit }: UploadDialogProps) {
                     <FormItem className="flex items-center justify-between">
                       <div>
                         <FormLabel>开启定时拉取</FormLabel>
-                        <FormDescription>开启后按频率自动更新文档</FormDescription>
+                        <FormDescription>开启后按频率自动更新学习资料</FormDescription>
                       </div>
                       <FormControl>
                         <Checkbox checked={field.value} onCheckedChange={(value) => field.onChange(Boolean(value))} />
@@ -1436,7 +1436,7 @@ function UploadDialog({ open, onOpenChange, onSubmit }: UploadDialogProps) {
                             ))
                           ) : (
                             <div className="py-6 text-center text-sm text-muted-foreground">
-                              暂无数据通道
+                              暂无入库通道
                             </div>
                           )}
                         </SelectContent>
@@ -1515,7 +1515,7 @@ function UploadDialog({ open, onOpenChange, onSubmit }: UploadDialogProps) {
                             onClick={handleNoChunkToggle}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-                              noChunk ? "bg-blue-600" : "bg-slate-200"
+                              noChunk ? "bg-teal-700" : "bg-slate-200"
                             )}
                           >
                             <span

@@ -17,6 +17,7 @@
 
 package com.nageoffer.ai.ragent.agent.executor;
 
+import com.nageoffer.ai.ragent.agent.clarification.AgentClarificationService;
 import com.nageoffer.ai.ragent.agent.core.Agent;
 import com.nageoffer.ai.ragent.agent.core.AgentActionType;
 import com.nageoffer.ai.ragent.agent.core.AgentContext;
@@ -49,6 +50,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -66,6 +68,7 @@ public class DefaultAgent implements Agent {
     private final ToolRegistry toolRegistry;
     private final AgentPromptBuilder promptBuilder;
     private final LLMService llmService;
+    private final AgentClarificationService clarificationService;
 
     @Override
     @RagTraceNode(name = "agent-run", type = "AGENT")
@@ -85,6 +88,24 @@ public class DefaultAgent implements Agent {
                 actualRequest.getSessionId(), toolsEnabled, isKnowledgeSearchEnabled(actualRequest), maxIterations);
 
         try {
+            Optional<String> clarification = detectClarification(context);
+            if (clarification.isPresent()) {
+                String prompt = clarification.get();
+                addStep(context, AgentActionType.CLARIFY, "intent-guidance", actualRequest.getUserInput(), prompt, 0L,
+                        "Detected ambiguous knowledge intent and asked for clarification.");
+                saveMemory(actualRequest, prompt);
+                log.info("Agent clarification returned, sessionId={}, steps={}",
+                        actualRequest.getSessionId(), context.getSteps().size());
+                return AgentResponse.builder()
+                        .answer(prompt)
+                        .steps(context.getSteps())
+                        .toolResults(context.getToolResults())
+                        .retrievedContext(context.getRetrievedContext())
+                        .success(true)
+                        .clarificationRequired(true)
+                        .build();
+            }
+
             for (int iteration = 1; iteration <= maxIterations; iteration++) {
                 context.setIteration(iteration);
                 AgentPlan plan = plan(context);
@@ -139,6 +160,7 @@ public class DefaultAgent implements Agent {
                     .toolResults(context.getToolResults())
                     .retrievedContext(context.getRetrievedContext())
                     .success(true)
+                    .clarificationRequired(false)
                     .build();
         } catch (Exception e) {
             String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
@@ -150,9 +172,17 @@ public class DefaultAgent implements Agent {
                     .toolResults(context.getToolResults())
                     .retrievedContext(context.getRetrievedContext())
                     .success(false)
+                    .clarificationRequired(false)
                     .errorMessage(reason)
                     .build();
         }
+    }
+
+    private Optional<String> detectClarification(AgentContext context) {
+        if (!isKnowledgeSearchEnabled(context.getRequest())) {
+            return Optional.empty();
+        }
+        return clarificationService.detectClarification(context);
     }
 
     private AgentPlan plan(AgentContext context) {

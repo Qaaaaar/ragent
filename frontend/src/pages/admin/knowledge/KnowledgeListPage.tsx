@@ -69,7 +69,7 @@ export function KnowledgeListPage() {
       const data = await getKnowledgeBasesPage(current, PAGE_SIZE, name || undefined);
       setPageData(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载知识库列表失败"));
+      toast.error(getErrorMessage(error, "加载个人知识库列表失败"));
       console.error(error);
     } finally {
       setLoading(false);
@@ -216,7 +216,7 @@ export function KnowledgeListPage() {
   const getCollectionBadgeClass = (name?: string) => {
     const value = (name || "").toLowerCase();
     if (value.includes("biz")) {
-      return "border-blue-200 bg-blue-50 text-blue-700";
+      return "border-teal-200 bg-teal-50 text-teal-700";
     }
     if (value.includes("group")) {
       return "border-purple-200 bg-purple-50 text-purple-700";
@@ -228,7 +228,7 @@ export function KnowledgeListPage() {
     if (!renameDialog.kb) return;
     const nextName = renameValue.trim();
     if (!nextName) {
-      toast.error("请输入知识库名称");
+      toast.error("请输入个人知识库名称");
       return;
     }
     if (nextName === renameDialog.kb.name) {
@@ -250,14 +250,14 @@ export function KnowledgeListPage() {
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">知识库管理</h1>
-          <p className="admin-page-subtitle">管理所有知识库及其文档</p>
+          <h1 className="admin-page-title">个人知识库管理</h1>
+          <p className="admin-page-subtitle">管理课程笔记、技术文档、论文资料和学习摘要</p>
         </div>
         <div className="admin-page-actions">
           <Input
             value={searchName}
             onChange={(event) => setSearchName(event.target.value)}
-            placeholder="搜索知识库名称"
+            placeholder="搜索个人知识库"
             className="w-[220px]"
           />
           <Button variant="outline" onClick={handleSearch}>
@@ -269,17 +269,17 @@ export function KnowledgeListPage() {
           </Button>
           <Button className="admin-primary-gradient" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            新建知识库
+            新建个人知识库
           </Button>
         </div>
       </div>
 
       <div className="admin-stat-grid">
         {[
-          { label: "知识库", value: stats.totalCount, icon: Database, scope: "全部" },
-          { label: "文档数", value: stats.documentCount, icon: FileBarChart, scope: "全部" },
-          { label: "含文档知识库", value: stats.activeCount, icon: FolderOpen, scope: "全部" },
-          { label: "创建用户数", value: stats.creatorCount, icon: Layers, scope: "全部" }
+          { label: "知识库", value: stats.totalCount, icon: Database, scope: "知识库" },
+          { label: "资料数", value: stats.documentCount, icon: FileBarChart, scope: "知识库" },
+          { label: "已配置知识库", value: stats.activeCount, icon: FolderOpen, scope: "知识库" },
+          { label: "维护人员数", value: stats.creatorCount, icon: Layers, scope: "知识库" }
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -305,7 +305,7 @@ export function KnowledgeListPage() {
             <div className="text-center py-8 text-muted-foreground">加载中...</div>
           ) : knowledgeBases.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              暂无知识库，点击上方按钮创建
+              暂无个人知识库，点击上方按钮创建
             </div>
           ) : (
             <Table className="min-w-[980px]">
@@ -314,7 +314,7 @@ export function KnowledgeListPage() {
                   <TableHead className="w-[200px]">名称</TableHead>
                   <TableHead className="w-[180px]">Embedding模型</TableHead>
                   <TableHead className="w-[220px]">Collection</TableHead>
-                  <TableHead className="w-[90px]">文档数</TableHead>
+                  <TableHead className="w-[90px]">资料数</TableHead>
                   <TableHead className="w-[120px]">负责人</TableHead>
                   <TableHead className="w-[160px]">创建时间</TableHead>
                   <TableHead className="w-[160px]">修改时间</TableHead>
@@ -393,7 +393,7 @@ export function KnowledgeListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
-              知识库删除后当前不提供恢复入口。确定要继续吗？
+              个人知识库删除后当前不提供恢复入口。确定要继续吗？
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -408,8 +408,8 @@ export function KnowledgeListPage() {
       <Dialog open={renameDialog.open} onOpenChange={(open) => setRenameDialog({ open, kb: open ? renameDialog.kb : null })}>
         <DialogContent className="sm:max-w-[420px]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => { e.preventDefault(); requestAnimationFrame(() => (document.activeElement as HTMLElement)?.blur()); }}>
           <DialogHeader>
-            <DialogTitle>重命名知识库</DialogTitle>
-            <DialogDescription>修改知识库名称</DialogDescription>
+            <DialogTitle>重命名个人知识库</DialogTitle>
+            <DialogDescription>修改个人知识库名称</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <label className="text-sm font-medium">名称</label>
@@ -451,7 +451,7 @@ export function KnowledgeListPage() {
         </div>
       ) : null}
 
-      {/* 创建知识库对话框 */}
+      {/* 创建个人知识库对话框 */}
       <CreateKnowledgeBaseDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}

@@ -20,6 +20,9 @@ package com.nageoffer.ai.ragent.agent.tool;
 public final class AgentToolNames {
 
     public static final String KNOWLEDGE_SEARCH = "knowledge_search";
+    public static final String DOCUMENT_SUMMARY = "document_summary";
+    public static final String CITATION_LOCATE = "citation_locate";
+    public static final String CONVERSATION_HISTORY = "conversation_history";
 
     private AgentToolNames() {
     }

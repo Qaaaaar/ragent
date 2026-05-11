@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Brain, ChevronDown } from "lucide-react";
 
-import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { cn } from "@/lib/utils";
@@ -9,16 +8,10 @@ import type { Message } from "@/types";
 
 interface MessageItemProps {
   message: Message;
-  isLast?: boolean;
 }
 
-export const MessageItem = React.memo(function MessageItem({ message, isLast }: MessageItemProps) {
+export const MessageItem = React.memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
-  const showFeedback =
-    message.role === "assistant" &&
-    message.status !== "streaming" &&
-    message.id &&
-    !message.id.startsWith("assistant-");
   const isThinking = Boolean(message.isThinking);
   const [thinkingExpanded, setThinkingExpanded] = React.useState(false);
   const hasThinking = Boolean(message.thinking && message.thinking.trim().length > 0);
@@ -43,32 +36,32 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
           <ThinkingIndicator content={message.thinking} duration={message.thinkingDuration} />
         ) : null}
         {!isThinking && hasThinking ? (
-          <div className="overflow-hidden rounded-lg border border-[#BFDBFE] bg-[#DBEAFE]">
+          <div className="overflow-hidden rounded-lg border border-[#99F6E4] bg-[#CCFBF1]">
             <button
               type="button"
               onClick={() => setThinkingExpanded((prev) => !prev)}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[#BFDBFE]/30"
+              className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[#99F6E4]/30"
             >
               <div className="flex flex-1 items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#BFDBFE]">
-                  <Brain className="h-4 w-4 text-[#2563EB]" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#99F6E4]">
+                  <Brain className="h-4 w-4 text-[#0F766E]" />
                 </div>
-                <span className="text-sm font-medium text-[#2563EB]">深度思考</span>
+                <span className="text-sm font-medium text-[#0F766E]">Agent 分析</span>
                 {thinkingDuration ? (
-                  <span className="rounded-full bg-[#BFDBFE] px-2 py-0.5 text-xs text-[#2563EB]">
+                  <span className="rounded-full bg-[#99F6E4] px-2 py-0.5 text-xs text-[#0F766E]">
                     {thinkingDuration}
                   </span>
                 ) : null}
               </div>
               <ChevronDown
                 className={cn(
-                  "h-4 w-4 text-[#3B82F6] transition-transform",
+                  "h-4 w-4 text-[#0F766E] transition-transform",
                   thinkingExpanded && "rotate-180"
                 )}
               />
             </button>
             {thinkingExpanded ? (
-              <div className="border-t border-[#BFDBFE] px-4 pb-4">
+              <div className="border-t border-[#99F6E4] px-4 pb-4">
                 <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#1E40AF]">
                   {message.thinking}
                 </div>
@@ -89,14 +82,6 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
           {hasContent ? <MarkdownRenderer content={message.content} /> : null}
           {message.status === "error" ? (
             <p className="text-xs text-rose-500">生成已中断。</p>
-          ) : null}
-          {showFeedback ? (
-            <FeedbackButtons
-              messageId={message.id}
-              feedback={message.feedback ?? null}
-              content={message.content}
-              alwaysVisible={Boolean(isLast)}
-            />
           ) : null}
         </div>
       </div>

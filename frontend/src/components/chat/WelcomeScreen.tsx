@@ -2,7 +2,6 @@ import * as React from "react";
 import { ArrowUpRight, BookOpen, Bot, Brain, Check, Lightbulb, Send, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { listSampleQuestions } from "@/services/sampleQuestionService";
 import { useChatStore } from "@/stores/chatStore";
 
 type PromptPreset = {
@@ -13,25 +12,23 @@ type PromptPreset = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-const PRESET_ICONS = [BookOpen, Check, Lightbulb];
-
 const DEFAULT_PRESETS: PromptPreset[] = [
   {
-    title: "内容总结",
-    description: "提炼 3-5 条关键信息与行动点",
-    prompt: "请帮我总结以下内容，并列出3-5条要点：",
+    title: "课程笔记总结",
+    description: "提炼章节重点、概念关系和复习线索",
+    prompt: "请总结《机器学习导论》这份课程笔记的核心概念，并列出 3 个适合复习的追问。",
     icon: BookOpen
   },
   {
-    title: "任务拆解",
-    description: "把目标拆成可执行步骤与优先级",
-    prompt: "请把下面需求拆解为步骤，并给出优先级和里程碑：",
+    title: "论文观点检索",
+    description: "围绕研究问题召回相关片段并对比观点",
+    prompt: "帮我查找资料中关于 RAG rerank 的论述，并说明不同文档的观点差异。",
     icon: Check
   },
   {
-    title: "灵感扩展",
-    description: "给出多个方案并比较优缺点",
-    prompt: "围绕以下主题给出5-8个方案，并注明优缺点：",
+    title: "引用定位",
+    description: "定位原文片段、页码和章节标题",
+    prompt: "我刚才提到的向量召回稳定性问题，能帮我找到对应原文依据和 chunkId 吗？",
     icon: Lightbulb
   }
 ];
@@ -39,7 +36,6 @@ const DEFAULT_PRESETS: PromptPreset[] = [
 export function WelcomeScreen() {
   const [value, setValue] = React.useState("");
   const [isFocused, setIsFocused] = React.useState(false);
-  const [promptPresets, setPromptPresets] = React.useState<PromptPreset[]>(DEFAULT_PRESETS);
   const isComposingRef = React.useRef(false);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const { sendMessage, isStreaming, cancelGeneration, deepThinkingEnabled, setDeepThinkingEnabled } =
@@ -62,43 +58,6 @@ export function WelcomeScreen() {
   React.useEffect(() => {
     adjustHeight();
   }, [value, adjustHeight]);
-
-  React.useEffect(() => {
-    let active = true;
-
-    const loadPresets = async () => {
-      const data = await listSampleQuestions().catch(() => null);
-      if (!active || !data || data.length === 0) {
-        return;
-      }
-      const mapped = data
-        .filter((item) => item.question && item.question.trim())
-        .slice(0, 3)
-        .map((item, index) => {
-          const question = item.question.trim();
-          const title =
-            item.title?.trim() ||
-            (question.length > 12 ? `${question.slice(0, 12)}...` : question) ||
-            `推荐问法 ${index + 1}`;
-          const description = item.description?.trim() || "直接点选即可开始对话";
-          return {
-            id: item.id,
-            title,
-            description,
-            prompt: question,
-            icon: PRESET_ICONS[index % PRESET_ICONS.length]
-          };
-        });
-      if (mapped.length > 0) {
-        setPromptPresets(mapped);
-      }
-    };
-
-    loadPresets();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const applyPreset = React.useCallback(
     (prompt: string) => {
@@ -129,36 +88,27 @@ export function WelcomeScreen() {
     <div className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-16 sm:px-6">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#F8FAFC] via-white to-[#EFF6FF]"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#F7FBFA] via-white to-[#FFF7ED]"
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-40 [background-size:40px_40px]"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-32 right-[-40px] h-72 w-72 rounded-full bg-gradient-radial from-[#BFDBFE]/60 via-transparent to-transparent blur-3xl animate-float"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-36 left-[-80px] h-80 w-80 rounded-full bg-gradient-radial from-[#FDE68A]/40 via-transparent to-transparent blur-3xl animate-float"
-      />
-
       <div className="relative w-full max-w-[860px]">
         <div
           className="text-center opacity-0 animate-fade-up"
           style={{ animationFillMode: "both" }}
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1 text-xs font-medium text-[#2563EB] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1 text-xs font-medium text-[#0F766E] shadow-sm">
             <Bot className="h-3.5 w-3.5" />
-            Agent 智能体
+            个人知识库 Agent
           </span>
           <h1 className="mt-4 font-display text-4xl leading-tight tracking-tight text-[#111827] sm:text-5xl md:text-6xl">
-            把问题变成
-            <span className="text-gradient">清晰答案</span>
+            把学习资料变成
+            <span className="text-gradient">可追溯答案</span>
           </h1>
           <p className="mt-4 text-base text-[#4B5563] sm:text-lg">
-            结构化提问、知识检索与深度思考，一次对话给出可执行方案
+            上传课程笔记、技术文档和论文资料后，Agent 会检索相关片段，结合多轮上下文生成带引用依据的回答
           </p>
         </div>
 
@@ -170,7 +120,7 @@ export function WelcomeScreen() {
             className={cn(
               "relative flex flex-col rounded-3xl border border-white/70 bg-white/80 px-5 pt-4 pb-3 shadow-soft backdrop-blur-xl transition-all duration-200",
               isFocused
-                ? "border-[#BFDBFE] shadow-glow"
+                ? "border-[#99F6E4] shadow-glow"
                 : "hover:border-[#D4D4D4]"
             )}
           >
@@ -179,7 +129,7 @@ export function WelcomeScreen() {
                 ref={textareaRef}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                placeholder={deepThinkingEnabled ? "输入需要深度分析的问题..." : "输入你的问题..."}
+                placeholder={deepThinkingEnabled ? "输入需要 Agent 深度分析的文档问题..." : "输入课程笔记、技术文档、论文资料相关问题..."}
                 className="max-h-40 min-h-[52px] w-full resize-none border-0 bg-transparent px-2 pt-2 pb-2 text-[15px] text-[#1F2937] placeholder:text-[#9CA3AF] focus:outline-none sm:text-base"
                 rows={1}
                 onFocus={() => setIsFocused(true)}
@@ -213,16 +163,16 @@ export function WelcomeScreen() {
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                   deepThinkingEnabled
-                    ? "border-[#BFDBFE] bg-[#DBEAFE] text-[#2563EB]"
+                    ? "border-[#99F6E4] bg-[#CCFBF1] text-[#0F766E]"
                     : "border-transparent bg-[#F5F5F5] text-[#6B7280] hover:bg-[#EEEEEE]",
                   isStreaming && "cursor-not-allowed opacity-60"
                 )}
               >
                 <span className="inline-flex items-center gap-2">
-                  <Brain className={cn("h-3.5 w-3.5", deepThinkingEnabled && "text-[#3B82F6]")} />
-                  深度思考
+                  <Brain className={cn("h-3.5 w-3.5", deepThinkingEnabled && "text-[#0F766E]")} />
+                  Agent 分析
                   {deepThinkingEnabled ? (
-                    <span className="h-2 w-2 rounded-full bg-[#3B82F6] animate-pulse" />
+                    <span className="h-2 w-2 rounded-full bg-[#0F766E] animate-pulse" />
                   ) : null}
                 </span>
               </button>
@@ -236,7 +186,7 @@ export function WelcomeScreen() {
                   isStreaming
                     ? "bg-[#FEE2E2] text-[#EF4444] hover:bg-[#FECACA]"
                     : hasContent
-                      ? "bg-[#3B82F6] text-white hover:bg-[#2563EB]"
+                      ? "bg-[#0F766E] text-white hover:bg-[#115E59]"
                       : "cursor-not-allowed bg-[#F5F5F5] text-[#CCCCCC]"
                 )}
               >
@@ -245,10 +195,10 @@ export function WelcomeScreen() {
             </div>
           </div>
           {deepThinkingEnabled ? (
-            <p className="mt-3 text-xs text-[#2563EB]">
+            <p className="mt-3 text-xs text-[#0F766E]">
               <span className="inline-flex items-center gap-1.5">
                 <Lightbulb className="h-3.5 w-3.5" />
-                深度思考模式已开启，AI将进行更深入的分析推理
+                Agent 分析模式已开启，将综合检索片段、会话上下文和可用工具规划回答路径
               </span>
             </p>
           ) : null}
@@ -272,11 +222,11 @@ export function WelcomeScreen() {
         >
           <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.24em] text-[#94A3B8]">
             <span className="h-px w-8 bg-[#E5E7EB]" />
-            试试这些开场
+            试试这些学习场景
             <span className="h-px w-8 bg-[#E5E7EB]" />
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {promptPresets.map((preset) => {
+            {DEFAULT_PRESETS.map((preset) => {
               const Icon = preset.icon;
               return (
                 <button
@@ -285,12 +235,12 @@ export function WelcomeScreen() {
                   onClick={() => applyPreset(preset.prompt)}
                   disabled={isStreaming}
                   className={cn(
-                    "group rounded-2xl border border-white/70 bg-white/70 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#BFDBFE] hover:shadow-md",
+                    "group rounded-2xl border border-white/70 bg-white/70 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#99F6E4] hover:shadow-md",
                     isStreaming && "cursor-not-allowed opacity-60"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
                       <Icon className="h-4 w-4" />
                     </span>
                     <div>
@@ -299,8 +249,8 @@ export function WelcomeScreen() {
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-[#94A3B8]">
-                    <span className="min-w-0 flex-1 truncate">推荐问法：{preset.prompt}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-[#CBD5F5] transition-colors group-hover:text-[#3B82F6]" />
+                    <span className="min-w-0 flex-1 truncate">可以这样问：{preset.prompt}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5 text-[#99F6E4] transition-colors group-hover:text-[#0F766E]" />
                   </div>
                 </button>
               );

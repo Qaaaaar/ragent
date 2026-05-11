@@ -24,8 +24,6 @@ import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
 import com.nageoffer.ai.ragent.infra.chat.StreamCallback;
 import com.nageoffer.ai.ragent.infra.chat.StreamCancellationHandle;
-import com.nageoffer.ai.ragent.rag.core.guidance.GuidanceDecision;
-import com.nageoffer.ai.ragent.rag.core.guidance.IntentGuidanceService;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentResolver;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
 import com.nageoffer.ai.ragent.rag.core.memory.MemoryRetrievalService;
@@ -71,7 +69,6 @@ public class StreamChatPipeline {
     private final QueryRewriteService queryRewriteService;
     private final IntentResolver intentResolver;
     private final ChatRoutePlanner routePlanner;
-    private final IntentGuidanceService guidanceService;
     private final RetrievalEngine retrievalEngine;
     private final LLMService llmService;
     private final RAGPromptService promptBuilder;
@@ -89,9 +86,6 @@ public class StreamChatPipeline {
 
         ChatRoutePlan routePlan = planRoute(ctx);
         if (handleDirectRoute(ctx, routePlan)) {
-            return;
-        }
-        if (handleGuidance(ctx)) {
             return;
         }
 
@@ -154,20 +148,6 @@ public class StreamChatPipeline {
                 ctx.getCallback()
         );
         taskManager.bindHandle(ctx.getTaskId(), handle);
-        return true;
-    }
-
-    private boolean handleGuidance(StreamChatContext ctx) {
-        GuidanceDecision decision = guidanceService.detectAmbiguity(
-                ctx.getRewriteResult().rewrittenQuestion(),
-                ctx.getSubIntents()
-        );
-        if (!decision.isPrompt()) {
-            return false;
-        }
-        StreamCallback callback = ctx.getCallback();
-        callback.onContent(decision.getPrompt());
-        callback.onComplete();
         return true;
     }
 

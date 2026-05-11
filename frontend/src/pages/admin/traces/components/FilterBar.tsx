@@ -28,13 +28,13 @@ export function FilterBar({ filters, onFiltersChange, onSearch, onRefresh, onRes
             className="trace-list-control"
             value={filters.conversationId}
             onChange={(event) => onFiltersChange({ conversationId: event.target.value })}
-            placeholder="按会话 ID 过滤"
+            placeholder="按问答会话 ID 过滤"
           />
           <Input
             className="trace-list-control"
             value={filters.taskId}
             onChange={(event) => onFiltersChange({ taskId: event.target.value })}
-            placeholder="按 Task ID 过滤"
+            placeholder="按任务 ID 过滤"
           />
           <Select
             value={filters.status || "__all__"}

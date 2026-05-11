@@ -131,7 +131,7 @@ const nodeStatusVariant = (status?: string | null) => {
 };
 
 const pipelineSchema = z.object({
-  name: z.string().min(1, "请输入流水线名称").max(60, "名称不能超过60个字符"),
+  name: z.string().min(1, "请输入入库流水线名称").max(60, "名称不能超过60个字符"),
   description: z.string().optional(),
   nodesJson: z.string().optional()
 });
@@ -185,7 +185,7 @@ interface PipelineNodeForm {
 
 const taskSchema = z
   .object({
-    pipelineId: z.string().min(1, "请选择流水线"),
+    pipelineId: z.string().min(1, "请选择入库流水线"),
     sourceType: z.string().min(1, "请选择来源类型"),
     location: z.string().optional(),
     fileName: z.string().optional(),
@@ -248,7 +248,7 @@ export function IngestionPage() {
       const data = await getIngestionPipelines(pageNo, PIPELINE_PAGE_SIZE, keyword || undefined);
       setPipelinePage(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载流水线失败"));
+      toast.error(getErrorMessage(error, "加载入库流水线失败"));
       console.error(error);
     } finally {
       setPipelineLoading(false);
@@ -338,7 +338,7 @@ export function IngestionPage() {
       const detail = await getIngestionPipeline(pipeline.id);
       setPipelineNodesDialog({ open: true, pipeline: detail });
     } catch (error) {
-      toast.error(getErrorMessage(error, "获取流水线详情失败"));
+      toast.error(getErrorMessage(error, "获取入库流水线详情失败"));
       console.error(error);
     }
   };
@@ -350,8 +350,8 @@ export function IngestionPage() {
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">数据通道</h1>
-          <p className="admin-page-subtitle">管理通道流水线与任务执行情况</p>
+          <h1 className="admin-page-title">学习资料入库</h1>
+          <p className="admin-page-subtitle">管理课程笔记、技术文档和论文资料的入库流水线与任务执行情况</p>
         </div>
         <div className="admin-page-actions">
           <Button
@@ -360,7 +360,7 @@ export function IngestionPage() {
             onClick={() => handleTabChange("pipelines")}
           >
             <FolderKanban className="mr-2 h-4 w-4" />
-            流水线
+            入库流水线
           </Button>
           <Button
             variant={activeTab === "tasks" ? "default" : "outline"}
@@ -378,14 +378,14 @@ export function IngestionPage() {
           <CardHeader>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <CardTitle>通道流水线</CardTitle>
+                <CardTitle>资料入库流水线</CardTitle>
                 <CardDescription>配置节点顺序与处理逻辑</CardDescription>
               </div>
               <div className="flex flex-1 items-center justify-end gap-2">
                 <Input
                   value={pipelineSearch}
                   onChange={(event) => setPipelineSearch(event.target.value)}
-                  placeholder="搜索流水线名称"
+                  placeholder="搜索入库流水线名称"
                   className="max-w-xs"
                 />
                 <Button variant="outline" onClick={handlePipelineSearch}>
@@ -400,7 +400,7 @@ export function IngestionPage() {
                   onClick={() => setPipelineDialog({ open: true, mode: "create", pipeline: null })}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  新建流水线
+                  新建入库流水线
                 </Button>
               </div>
             </div>
@@ -409,7 +409,7 @@ export function IngestionPage() {
             {pipelineLoading ? (
               <div className="py-10 text-center text-muted-foreground">加载中...</div>
             ) : pipelines.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground">暂无流水线</div>
+              <div className="py-10 text-center text-muted-foreground">暂无入库流水线</div>
             ) : (
               <Table className="min-w-[920px]">
                 <TableHeader>
@@ -478,7 +478,7 @@ export function IngestionPage() {
           <CardHeader>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <CardTitle>通道任务</CardTitle>
+                <CardTitle>资料入库任务</CardTitle>
                 <CardDescription>监控执行状态与节点日志</CardDescription>
               </div>
               <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
@@ -507,7 +507,7 @@ export function IngestionPage() {
                 </Button>
                 <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
                   <FileUp className="mr-2 h-4 w-4" />
-                  上传文件
+                  上传学习资料
                 </Button>
                 <Button className="admin-primary-gradient" onClick={() => setTaskDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -605,9 +605,9 @@ export function IngestionPage() {
       <AlertDialog open={Boolean(pipelineDeleteTarget)} onOpenChange={(open) => (!open ? setPipelineDeleteTarget(null) : null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除流水线？</AlertDialogTitle>
+            <AlertDialogTitle>确认删除入库流水线？</AlertDialogTitle>
             <AlertDialogDescription>
-              流水线 [{pipelineDeleteTarget?.name}] 将被永久删除。
+              入库流水线 [{pipelineDeleteTarget?.name}] 将被永久删除。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1050,7 +1050,7 @@ function PipelineDialog({ open, mode, pipeline, onOpenChange, onSubmit }: Pipeli
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sidebar-scroll sm:max-w-[880px]">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "新建流水线" : "编辑流水线"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? "新建入库流水线" : "编辑入库流水线"}</DialogTitle>
           <DialogDescription>配置节点顺序与处理逻辑</DialogDescription>
         </DialogHeader>
 
@@ -1061,9 +1061,9 @@ function PipelineDialog({ open, mode, pipeline, onOpenChange, onSubmit }: Pipeli
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>流水线名称</FormLabel>
+                  <FormLabel>入库流水线名称</FormLabel>
                   <FormControl>
-                    <Input placeholder="例如：通用文档通道" {...field} />
+                    <Input placeholder="例如：学习资料入库通道" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1077,7 +1077,7 @@ function PipelineDialog({ open, mode, pipeline, onOpenChange, onSubmit }: Pipeli
                 <FormItem>
                   <FormLabel>描述</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="说明流水线用途或流程" {...field} />
+                    <Textarea placeholder="说明学习资料清洗、分块、增强和入库流程" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1507,7 +1507,7 @@ function PipelineDialog({ open, mode, pipeline, onOpenChange, onSubmit }: Pipeli
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">附加文档元数据</label>
+                            <label className="text-sm font-medium">附加学习资料元数据</label>
                             <Select
                               value={node.enricher.attachDocumentMetadata ? "true" : "false"}
                               onValueChange={(value) =>
@@ -1783,7 +1783,7 @@ function PipelineNodesDialog({ open, pipeline, onOpenChange }: PipelineNodesDial
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>流水线节点</DialogTitle>
+          <DialogTitle>入库流水线节点</DialogTitle>
           <DialogDescription>{pipeline?.name || ""}</DialogDescription>
         </DialogHeader>
         {nodes.length === 0 ? (
@@ -1861,7 +1861,7 @@ function TaskDialog({ open, pipelineOptions, onOpenChange, onSubmit, onUpload }:
       case "feishu":
         return {
           locationPlaceholder: "https://open.feishu.cn/...",
-          locationHint: "填写飞书文档链接",
+          locationHint: "填写飞书学习资料链接",
           credentialsHint: '{"tenantAccessToken":"..."} 或 {"app_id":"...","app_secret":"..."}'
         };
       case "s3":
@@ -1979,8 +1979,8 @@ function TaskDialog({ open, pipelineOptions, onOpenChange, onSubmit, onUpload }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sidebar-scroll sm:max-w-[720px]">
         <DialogHeader>
-          <DialogTitle>新建通道任务</DialogTitle>
-          <DialogDescription>支持 Local File / URL / Feishu / S3 来源，Local File 会直接上传文件</DialogDescription>
+          <DialogTitle>新建资料入库任务</DialogTitle>
+          <DialogDescription>支持 Local File / URL / Feishu / S3 来源，Local File 会直接上传学习资料</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -1989,11 +1989,11 @@ function TaskDialog({ open, pipelineOptions, onOpenChange, onSubmit, onUpload }:
               name="pipelineId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>流水线</FormLabel>
+                  <FormLabel>入库流水线</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="选择流水线" />
+                        <SelectValue placeholder="选择入库流水线" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -2152,7 +2152,7 @@ function UploadDialog({ open, pipelineOptions, onOpenChange, onSubmit }: UploadD
 
   const handleSubmit = async () => {
     if (!pipelineId) {
-      toast.error("请选择流水线");
+      toast.error("请选择入库流水线");
       return;
     }
     if (!file) {
@@ -2179,15 +2179,15 @@ function UploadDialog({ open, pipelineOptions, onOpenChange, onSubmit }: UploadD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>上传文件并进入通道</DialogTitle>
-          <DialogDescription>上传文件后立即触发通道任务</DialogDescription>
+          <DialogTitle>上传学习资料并进入通道</DialogTitle>
+          <DialogDescription>上传学习资料后立即触发入库任务</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">流水线</label>
+            <label className="text-sm font-medium">入库流水线</label>
             <Select value={pipelineId} onValueChange={setPipelineId}>
               <SelectTrigger className="mt-2">
-                <SelectValue placeholder="选择流水线" />
+                <SelectValue placeholder="选择入库流水线" />
               </SelectTrigger>
               <SelectContent>
                 {pipelineOptions.map((pipeline) => (

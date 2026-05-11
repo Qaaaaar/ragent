@@ -87,7 +87,7 @@ function MetricItem({
     success: "text-emerald-600",
     error: "text-red-600",
     warning: "text-amber-600",
-    primary: "text-blue-600"
+    primary: "text-teal-700"
   };
 
   return (
@@ -225,7 +225,7 @@ export function RagTraceDetailPage() {
       setDetail(result);
     } catch (error) {
       if (detailRequestRef.current !== requestId) return;
-      toast.error(getErrorMessage(error, "加载链路详情失败"));
+      toast.error(getErrorMessage(error, "加载 Agent 处理链路详情失败"));
       console.error(error);
       setDetail(null);
     } finally {
@@ -307,7 +307,7 @@ export function RagTraceDetailPage() {
         <div className="min-h-[400px] flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-slate-500">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <p>加载链路详情中...</p>
+            <p>加载 Agent 处理链路详情中...</p>
           </div>
         </div>
     );
@@ -319,7 +319,7 @@ export function RagTraceDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm">
               <Link to="/admin/traces" className="text-slate-500 hover:text-slate-700">
-                链路追踪
+                Agent 处理链路
               </Link>
               <span className="text-slate-300">/</span>
               <span className="text-slate-400">详情</span>
@@ -356,13 +356,13 @@ export function RagTraceDetailPage() {
                   to="/admin/traces"
                   className="text-slate-500 hover:text-slate-700 transition-colors"
               >
-                Agent 链路列表
+                Agent 处理链路列表
               </Link>
               <span className="text-slate-300">/</span>
             </div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold text-slate-900">
-                {selectedRun.traceName || "未命名链路"}
+                {selectedRun.traceName || "未命名处理链路"}
               </h1>
               <Badge variant={statusBadgeVariant(selectedRun.status)} className="text-xs">
                 {statusLabel(selectedRun.status)}
@@ -423,7 +423,7 @@ export function RagTraceDetailPage() {
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <span className="font-medium text-red-800">执行出错：</span>
+                <span className="font-medium text-red-800">Agent 执行出错：</span>
                 <span className="text-red-600 ml-1">{selectedRun.errorMessage}</span>
               </div>
             </div>
@@ -474,7 +474,7 @@ export function RagTraceDetailPage() {
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-700">
-                执行时序
+                Agent 执行时序
               </CardTitle>
               <span className="text-xs text-slate-500">
               窗口 {formatDuration(timeline.totalWindowMs)}

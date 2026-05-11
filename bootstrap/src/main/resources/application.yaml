@@ -28,11 +28,11 @@ spring:
 
   data:
     redis:
-      host: 114.132.204.124
-      port: 16379
+      host: ${REDIS_HOST:114.132.204.124}
+      port: ${REDIS_PORT:16379}
 
 rocketmq:
-  name-server: 114.132.204.124:9876
+  name-server: ${ROCKETMQ_NAME_SERVER:114.132.204.124:9876}
   producer:
     group: ragent-producer${unique-name:}_pg
     send-message-timeout: 2000
@@ -91,9 +91,7 @@ rag:
       min-interval-seconds: 60
 
   mcp:
-    servers:
-      - name: default
-        url: http://localhost:9099
+    servers: []
 
   search:
     channels:
@@ -199,9 +197,9 @@ ai:
         priority: 100
 
 rustfs:
-  url: http://114.132.204.124:9002
-  access-key-id: rustfsadmin
-  secret-access-key: rustfsadmin
+  url: ${RUSTFS_URL:http://114.132.204.124:9002}
+  access-key-id: ${RUSTFS_ACCESS_KEY_ID:rustfsadmin}
+  secret-access-key: ${RUSTFS_SECRET_ACCESS_KEY:rustfsadmin}
 
 sa-token:
   token-name: Authorization

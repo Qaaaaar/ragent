@@ -55,7 +55,7 @@ export function RagTracePage() {
       setPageData(result);
     } catch (error) {
       if (runsRequestRef.current !== requestId) return;
-      toast.error(getErrorMessage(error, "加载链路运行列表失败"));
+      toast.error(getErrorMessage(error, "加载 Agent 处理链路列表失败"));
       console.error(error);
     } finally {
       if (runsRequestRef.current !== requestId) return;
@@ -149,9 +149,9 @@ export function RagTracePage() {
       <div className="trace-list-shell">
         <div className="admin-page-header">
           <div>
-            <h1 className="admin-page-title">链路追踪</h1>
+            <h1 className="admin-page-title">Agent 处理链路</h1>
             <p className="admin-page-subtitle">
-              独立列表页聚焦运行检索，点击任意运行记录进入详情页分析慢节点与失败节点
+              查看每次问答会话的意图识别、检索、工具调用和模型响应耗时
             </p>
           </div>
           <div className="admin-page-actions">

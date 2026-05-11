@@ -21,11 +21,11 @@ export function SessionList({ onSelect }: SessionListProps) {
   }, [fetchSessions, sessions.length]);
 
   if (isLoading && sessions.length === 0) {
-    return <Loading label="加载会话中" />;
+    return <Loading label="加载问答会话中" />;
   }
 
   if (sessions.length === 0) {
-    return <p className="text-sm text-muted-foreground">暂无会话。</p>;
+    return <p className="text-sm text-muted-foreground">暂无问答会话。</p>;
   }
 
   return (

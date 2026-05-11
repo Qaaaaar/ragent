@@ -53,7 +53,10 @@ public class AgentPromptBuilder {
         prompt.append("}\n\n");
         prompt.append("Rules:\n");
         prompt.append("- All external capabilities are tools. Do not use a separate RAG path.\n");
-        prompt.append("- Use ").append(AgentToolNames.KNOWLEDGE_SEARCH).append(" for knowledge base, documents, internal material, citations, policies, manuals, or project-specific facts.\n");
+        prompt.append("- Use ").append(AgentToolNames.KNOWLEDGE_SEARCH).append(" for broad knowledge-base search, internal material, policies, manuals, or project-specific facts.\n");
+        prompt.append("- Use ").append(AgentToolNames.DOCUMENT_SUMMARY).append(" when the user asks to summarize a known or named document.\n");
+        prompt.append("- Use ").append(AgentToolNames.CITATION_LOCATE).append(" when the user asks for a citation, quote location, source, docId, chunkId, or evidence position.\n");
+        prompt.append("- Use ").append(AgentToolNames.CONVERSATION_HISTORY).append(" when the user asks about previous chats, historical sessions, or past messages.\n");
         prompt.append("- Use other MCP tools for external systems, live status, files, APIs, tickets, weather, sales, or database capabilities.\n");
         prompt.append("- Use multiple tools when the answer needs both document evidence and business system output.\n");
         prompt.append("- shouldAnswerDirectly is true only for simple chat or general explanation.\n");

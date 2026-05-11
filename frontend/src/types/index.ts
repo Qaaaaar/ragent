@@ -1,7 +1,5 @@
 export type Role = "user" | "assistant";
 
-export type FeedbackValue = "like" | "dislike" | null;
-
 export type MessageStatus = "streaming" | "done" | "cancelled" | "error";
 
 export interface User {
@@ -29,7 +27,6 @@ export interface Message {
   isDeepThinking?: boolean;
   isThinking?: boolean;
   createdAt?: string;
-  feedback?: FeedbackValue;
   status?: MessageStatus;
 }
 

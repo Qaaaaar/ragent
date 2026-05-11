@@ -19,6 +19,8 @@ package com.nageoffer.ai.ragent.agent.core;
 
 public enum AgentActionType {
 
+    CLARIFY,
+
     PLAN,
 
     RAG_SEARCH,

@@ -2,24 +2,15 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 
 import { LoginPage } from "@/pages/LoginPage";
 import { ChatPage } from "@/pages/ChatPage";
-import { UserMemoryPage } from "@/pages/memories/UserMemoryPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
-import { DashboardPage } from "@/pages/admin/dashboard/DashboardPage";
 import { KnowledgeListPage } from "@/pages/admin/knowledge/KnowledgeListPage";
 import { KnowledgeDocumentsPage } from "@/pages/admin/knowledge/KnowledgeDocumentsPage";
 import { KnowledgeChunksPage } from "@/pages/admin/knowledge/KnowledgeChunksPage";
-import { IntentTreePage } from "@/pages/admin/intent-tree/IntentTreePage";
-import { IntentListPage } from "@/pages/admin/intent-tree/IntentListPage";
-import { IntentEditPage } from "@/pages/admin/intent-tree/IntentEditPage";
 import { IngestionPage } from "@/pages/admin/ingestion/IngestionPage";
 import { RagTracePage } from "@/pages/admin/traces/RagTracePage";
 import { RagTraceDetailPage } from "@/pages/admin/traces/RagTraceDetailPage";
 import { SystemSettingsPage } from "@/pages/admin/settings/SystemSettingsPage";
-import { SampleQuestionPage } from "@/pages/admin/sample-questions/SampleQuestionPage";
-import { QueryTermMappingPage } from "@/pages/admin/query-term-mapping/QueryTermMappingPage";
-import { AdminMemoryPage } from "@/pages/admin/memories/AdminMemoryPage";
-import { UserListPage } from "@/pages/admin/users/UserListPage";
 import { useAuthStore } from "@/stores/authStore";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -88,14 +79,6 @@ export const router = createBrowserRouter([
     )
   },
   {
-    path: "/memories",
-    element: (
-      <RequireAuth>
-        <UserMemoryPage />
-      </RequireAuth>
-    )
-  },
-  {
     path: "/admin",
     element: (
       <RequireAdmin>
@@ -105,11 +88,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/admin/dashboard" replace />
-      },
-      {
-        path: "dashboard",
-        element: <DashboardPage />
+        element: <Navigate to="/admin/knowledge" replace />
       },
       {
         path: "knowledge",
@@ -122,18 +101,6 @@ export const router = createBrowserRouter([
       {
         path: "knowledge/:kbId/docs/:docId",
         element: <KnowledgeChunksPage />
-      },
-      {
-        path: "intent-tree",
-        element: <IntentTreePage />
-      },
-      {
-        path: "intent-list",
-        element: <IntentListPage />
-      },
-      {
-        path: "intent-list/:id/edit",
-        element: <IntentEditPage />
       },
       {
         path: "ingestion",
@@ -150,22 +117,6 @@ export const router = createBrowserRouter([
       {
         path: "settings",
         element: <SystemSettingsPage />
-      },
-      {
-        path: "sample-questions",
-        element: <SampleQuestionPage />
-      },
-      {
-        path: "mappings",
-        element: <QueryTermMappingPage />
-      },
-      {
-        path: "memories",
-        element: <AdminMemoryPage />
-      },
-      {
-        path: "users",
-        element: <UserListPage />
       }
     ]
   },

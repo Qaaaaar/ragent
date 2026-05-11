@@ -73,7 +73,7 @@ export function ChatInput() {
             ref={textareaRef}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder={deepThinkingEnabled ? "输入需要深度分析的问题..." : "输入你的问题..."}
+            placeholder={deepThinkingEnabled ? "输入需要 Agent 深度分析的文档问题..." : "输入课程笔记、技术文档、论文资料相关问题..."}
             className="max-h-40 min-h-[44px] w-full resize-none border-0 bg-transparent px-2 pt-2 pb-2 pr-2 text-[15px] text-[#333333] shadow-none placeholder:text-[#999999] focus-visible:ring-0"
             rows={1}
             onFocus={() => setIsFocused(true)}
@@ -107,16 +107,16 @@ export function ChatInput() {
             className={cn(
               "absolute left-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
               deepThinkingEnabled
-                ? "border-[#BFDBFE] bg-[#DBEAFE] text-[#2563EB]"
+                ? "border-[#99F6E4] bg-[#CCFBF1] text-[#0F766E]"
                 : "border-transparent bg-[#F5F5F5] text-[#999999] hover:bg-[#EEEEEE]",
               isStreaming && "cursor-not-allowed opacity-60"
             )}
           >
             <span className="inline-flex items-center gap-2">
-              <Brain className={cn("h-3.5 w-3.5", deepThinkingEnabled && "text-[#3B82F6]")} />
-              深度思考
+              <Brain className={cn("h-3.5 w-3.5", deepThinkingEnabled && "text-[#0F766E]")} />
+              Agent 分析
               {deepThinkingEnabled ? (
-                <span className="h-2 w-2 rounded-full bg-[#3B82F6] animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-[#0F766E] animate-pulse" />
               ) : null}
             </span>
           </button>
@@ -130,7 +130,7 @@ export function ChatInput() {
               isStreaming
                 ? "bg-[#FEE2E2] text-[#EF4444] hover:bg-[#FECACA]"
                 : hasContent
-                  ? "bg-[#3B82F6] text-white hover:bg-[#2563EB]"
+                  ? "bg-[#0F766E] text-white hover:bg-[#115E59]"
                   : "cursor-not-allowed bg-[#F5F5F5] text-[#CCCCCC]"
             )}
           >
@@ -139,10 +139,10 @@ export function ChatInput() {
         </div>
       </div>
       {deepThinkingEnabled ? (
-        <p className="text-xs text-[#2563EB]">
+        <p className="text-xs text-[#0F766E]">
           <span className="inline-flex items-center gap-1.5">
             <Lightbulb className="h-3.5 w-3.5" />
-            深度思考模式已开启，AI将进行更深入的分析推理
+            Agent 分析模式已开启，将结合检索片段、会话上下文与工具结果规划回答路径
           </span>
         </p>
       ) : null}

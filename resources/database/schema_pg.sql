@@ -128,18 +128,6 @@ CREATE INDEX idx_rag_memory_keywords ON t_rag_memory USING gin(keywords);
 CREATE INDEX idx_rag_memory_embedding ON t_rag_memory USING hnsw (embedding vector_cosine_ops);
 COMMENT ON TABLE t_rag_memory IS 'RAG中长期与长期记忆表';
 
-CREATE TABLE t_sample_question (
-    id          VARCHAR(20)        NOT NULL PRIMARY KEY,
-    title       VARCHAR(64),
-    description VARCHAR(255),
-    question    VARCHAR(255) NOT NULL,
-    create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-    update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-    deleted     SMALLINT      DEFAULT 0
-);
-CREATE INDEX idx_sample_question_deleted ON t_sample_question (deleted);
-COMMENT ON TABLE t_sample_question IS '示例问题表';
-
 -- ============================================
 -- Knowledge Base Tables
 -- ============================================
@@ -502,15 +490,6 @@ COMMENT ON COLUMN t_message_feedback.comment IS '反馈评论';
 COMMENT ON COLUMN t_message_feedback.create_time IS '创建时间';
 COMMENT ON COLUMN t_message_feedback.update_time IS '更新时间';
 COMMENT ON COLUMN t_message_feedback.deleted IS '是否删除 0：正常 1：删除';
-
--- t_sample_question
-COMMENT ON COLUMN t_sample_question.id IS 'ID';
-COMMENT ON COLUMN t_sample_question.title IS '展示标题';
-COMMENT ON COLUMN t_sample_question.description IS '描述或提示';
-COMMENT ON COLUMN t_sample_question.question IS '示例问题内容';
-COMMENT ON COLUMN t_sample_question.create_time IS '创建时间';
-COMMENT ON COLUMN t_sample_question.update_time IS '更新时间';
-COMMENT ON COLUMN t_sample_question.deleted IS '是否删除 0：正常 1：删除';
 
 -- t_knowledge_base
 COMMENT ON COLUMN t_knowledge_base.id IS '主键 ID';

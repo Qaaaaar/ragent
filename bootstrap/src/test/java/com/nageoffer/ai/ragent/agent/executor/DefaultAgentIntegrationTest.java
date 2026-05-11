@@ -17,6 +17,8 @@
 
 package com.nageoffer.ai.ragent.agent.executor;
 
+import com.nageoffer.ai.ragent.agent.clarification.AgentClarificationService;
+import com.nageoffer.ai.ragent.agent.core.AgentActionType;
 import com.nageoffer.ai.ragent.agent.core.AgentContext;
 import com.nageoffer.ai.ragent.agent.core.AgentProperties;
 import com.nageoffer.ai.ragent.agent.core.AgentRequest;
@@ -131,10 +133,79 @@ class DefaultAgentIntegrationTest {
         assertTrue(response.getSteps().stream().anyMatch(step -> "max-iterations".equals(step.getActionName())));
     }
 
+    @Test
+    void shouldReturnClarificationBeforePlanningToolsAndFinalAnswer() {
+        CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
+        StubAgentTool tool = StubAgentTool.success("weather");
+        StubLlmService llmService = new StubLlmService("should not answer");
+        DefaultAgent agent = newAgent(context -> {
+            throw new AssertionError("planner should not be called when clarification is required");
+        }, llmService, clarificationService, 3, tool);
+
+        AgentResponse response = agent.run(request("query process", 3));
+
+        assertTrue(response.isSuccess());
+        assertTrue(response.isClarificationRequired());
+        assertEquals("Please choose a system.", response.getAnswer());
+        assertEquals(1, clarificationService.calls);
+        assertEquals(0, tool.calls);
+        assertEquals(0, llmService.calls);
+        assertTrue(response.getSteps().stream()
+                .anyMatch(step -> AgentActionType.CLARIFY.name().equals(step.getActionType())));
+    }
+
+    @Test
+    void shouldSkipClarificationWhenRequestDisablesRag() {
+        CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
+        StubLlmService llmService = new StubLlmService("direct final");
+        DefaultAgent agent = newAgent(fixedPlanner(directPlan()), llmService, clarificationService, 3);
+
+        AgentRequest request = request("hello", 3);
+        request.setEnableRag(false);
+        AgentResponse response = agent.run(request);
+
+        assertTrue(response.isSuccess());
+        assertFalse(response.isClarificationRequired());
+        assertEquals("direct final", response.getAnswer());
+        assertEquals(0, clarificationService.calls);
+        assertEquals(1, llmService.calls);
+    }
+
+    @Test
+    void shouldSkipClarificationWhenAgentRagDisabled() {
+        CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
+        StubLlmService llmService = new StubLlmService("direct final");
+        AgentProperties properties = new AgentProperties();
+        properties.getRag().setEnabled(false);
+        DefaultAgent agent = newAgent(properties, fixedPlanner(directPlan()), llmService, clarificationService);
+
+        AgentResponse response = agent.run(request("hello", 3));
+
+        assertTrue(response.isSuccess());
+        assertFalse(response.isClarificationRequired());
+        assertEquals("direct final", response.getAnswer());
+        assertEquals(0, clarificationService.calls);
+        assertEquals(1, llmService.calls);
+    }
+
     private DefaultAgent newAgent(AgentPlanner planner, LLMService llmService, int maxIterations, AgentTool... tools) {
         AgentProperties properties = new AgentProperties();
         properties.setMaxIterations(maxIterations);
         properties.getMemory().setMaxMessages(20);
+        return newAgent(properties, planner, llmService, AgentClarificationService.empty(), tools);
+    }
+
+    private DefaultAgent newAgent(AgentPlanner planner, LLMService llmService,
+                                  AgentClarificationService clarificationService,
+                                  int maxIterations, AgentTool... tools) {
+        AgentProperties properties = new AgentProperties();
+        properties.setMaxIterations(maxIterations);
+        properties.getMemory().setMaxMessages(20);
+        return newAgent(properties, planner, llmService, clarificationService, tools);
+    }
+
+    private DefaultAgent newAgent(AgentProperties properties, AgentPlanner planner, LLMService llmService,
+                                  AgentClarificationService clarificationService, AgentTool... tools) {
         ToolRegistry toolRegistry = new ToolRegistry(new EmptyMcpToolRegistry());
         for (AgentTool tool : tools) {
             if (tool != null) {
@@ -147,7 +218,8 @@ class DefaultAgentIntegrationTest {
                 new InMemoryAgentMemory(properties),
                 toolRegistry,
                 new AgentPromptBuilder(),
-                llmService
+                llmService,
+                clarificationService
         );
     }
 
@@ -274,6 +346,7 @@ class DefaultAgentIntegrationTest {
     private static class StubLlmService implements LLMService {
 
         private final String answer;
+        private int calls;
 
         private StubLlmService(String answer) {
             this.answer = answer;
@@ -281,6 +354,7 @@ class DefaultAgentIntegrationTest {
 
         @Override
         public String chat(ChatRequest request) {
+            calls++;
             return answer;
         }
 
@@ -288,6 +362,22 @@ class DefaultAgentIntegrationTest {
         public StreamCancellationHandle streamChat(ChatRequest request, StreamCallback callback) {
             return () -> {
             };
+        }
+    }
+
+    private static class CountingClarificationService implements AgentClarificationService {
+
+        private final String prompt;
+        private int calls;
+
+        private CountingClarificationService(String prompt) {
+            this.prompt = prompt;
+        }
+
+        @Override
+        public Optional<String> detectClarification(AgentContext context) {
+            calls++;
+            return Optional.ofNullable(prompt);
         }
     }
 

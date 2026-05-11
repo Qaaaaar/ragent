@@ -7,19 +7,13 @@ import {
   ChevronsRight,
   ClipboardList,
   Database,
-  GitBranch,
-  Layers,
-  LayoutDashboard,
-  Lightbulb,
   LogOut,
-  Brain,
   Menu,
   MessageSquare,
   KeyRound,
   Search,
   Settings,
   Upload,
-  Users,
   FolderKanban,
   Workflow
 } from "lucide-react";
@@ -68,107 +62,57 @@ type MenuGroup = {
 
 const menuGroups: MenuGroup[] = [
   {
-    title: "导航",
+    title: "知识库管理",
     items: [
       {
-        path: "/admin/dashboard",
-        label: "Dashboard",
-        icon: LayoutDashboard
-      },
-      {
         path: "/admin/knowledge",
-        label: "知识库管理",
+        label: "个人知识库",
         icon: Database
-      },
-      {
-        id: "intent",
-        path: "/admin/intent-tree",
-        label: "意图管理",
-        icon: Layers,
-        children: [
-          {
-            path: "/admin/intent-tree",
-            label: "意图树配置",
-            icon: GitBranch
-          },
-          {
-            path: "/admin/intent-list",
-            label: "意图列表",
-            icon: ClipboardList
-          }
-        ]
       },
       {
         id: "ingestion",
         path: "/admin/ingestion",
-        label: "数据通道",
+        label: "资料入库",
         icon: Upload,
         children: [
           {
             path: "/admin/ingestion",
-            label: "流水线管理",
+            label: "入库流水线",
             icon: FolderKanban,
             search: "?tab=pipelines"
           },
           {
             path: "/admin/ingestion",
-            label: "流水线任务",
+            label: "入库任务",
             icon: ClipboardList,
             search: "?tab=tasks"
           }
         ]
       },
       {
-        path: "/admin/mappings",
-        label: "关键词映射",
-        icon: KeyRound
-      },
-      {
-        path: "/admin/memories",
-        label: "记忆治理",
-        icon: Brain
-      },
-      {
         path: "/admin/traces",
-        label: "链路追踪",
+        label: "Agent 链路",
         icon: Workflow
-      },
+      }
     ]
   },
   {
-    title: "设置",
+    title: "系统配置",
     items: [
-      {
-        path: "/admin/users",
-        label: "用户管理",
-        icon: Users
-      },
-      {
-        path: "/admin/sample-questions",
-        label: "示例问题",
-        icon: Lightbulb
-      },
       {
         path: "/admin/settings",
         label: "系统设置",
         icon: Settings
-      },
+      }
     ]
   }
 ];
 
 const breadcrumbMap: Record<string, string> = {
-  dashboard: "Dashboard",
-  knowledge: "知识库管理",
-  "intent-tree": "意图树配置",
-  "intent-list": "意图列表",
-  ingestion: "数据通道",
-  traces: "链路追踪",
-  "sample-questions": "示例问题",
-  mappings: "关键词映射",
-  memories: "记忆治理",
-  settings: "系统设置",
-  users: "用户管理"
+  knowledge: "个人知识库",
+  ingestion: "资料入库",
+  traces: "Agent 链路",
+  settings: "系统设置"
 };
 
 export function AdminLayout() {
@@ -183,7 +127,7 @@ export function AdminLayout() {
     newPassword: "",
     confirmPassword: ""
   });
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ ingestion: true, intent: true });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ ingestion: true });
   const [kbQuery, setKbQuery] = useState("");
   const [kbOptions, setKbOptions] = useState<KnowledgeBase[]>([]);
   const [docOptions, setDocOptions] = useState<KnowledgeDocumentSearchItem[]>([]);
@@ -191,7 +135,6 @@ export function AdminLayout() {
   const [searchFocused, setSearchFocused] = useState(false);
   const blurTimeoutRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const isDashboardRoute = location.pathname.startsWith("/admin/dashboard");
 
   const handleLogout = async () => {
     await logout();
@@ -242,58 +185,38 @@ export function AdminLayout() {
   const breadcrumbs = useMemo(() => {
     const segments = location.pathname.split("/").filter(Boolean);
     const items: { label: string; to?: string }[] = [
-      { label: "首页", to: "/admin/dashboard" }
+      { label: "控制台", to: "/admin/knowledge" }
     ];
 
     if (segments[0] !== "admin") return items;
     const section = segments[1];
     if (section) {
-      if (section === "intent-tree" || section === "intent-list") {
-        items.push({
-          label: "意图管理",
-          to: "/admin/intent-tree"
-        });
-        if (section === "intent-list" && segments.includes("edit")) {
-          items.push({
-            label: breadcrumbMap[section] || section,
-            to: "/admin/intent-list"
-          });
-          items.push({
-            label: "编辑节点"
-          });
-        } else {
-          items.push({
-            label: breadcrumbMap[section] || section
-          });
-        }
-      } else {
-        items.push({
-          label: breadcrumbMap[section] || section,
-          to: `/admin/${section}`
-        });
-      }
+      items.push({
+        label: breadcrumbMap[section] || section,
+        to: `/admin/${section}`
+      });
     }
 
     if (section === "ingestion") {
       const searchParams = new URLSearchParams(location.search);
       const tab = searchParams.get("tab");
       if (tab === "tasks") {
-        items.push({ label: "流水线任务" });
+        items.push({ label: "入库任务" });
       } else if (tab === "pipelines") {
-        items.push({ label: "流水线管理" });
+        items.push({ label: "入库流水线" });
       }
     }
 
     if (section === "knowledge" && segments.length > 2) {
-      items.push({ label: "文档管理" });
+      items.push({ label: "知识资料" });
     }
 
     if (section === "knowledge" && segments.includes("docs")) {
-      items.push({ label: "切片管理" });
+      items.push({ label: "内容切片" });
     }
 
     if (section === "traces" && segments.length > 2) {
-      items.push({ label: "链路详情" });
+      items.push({ label: "Agent 链路详情" });
     }
 
     return items;
@@ -301,18 +224,15 @@ export function AdminLayout() {
 
   const avatarUrl = user?.avatar?.trim();
   const showAvatar = Boolean(avatarUrl);
-  const roleLabel = user?.role === "admin" ? "管理员" : "成员";
+  const roleLabel = user?.role === "admin" ? "管理员" : "普通用户";
   const isIngestionActive = location.pathname.startsWith("/admin/ingestion");
-  const isIntentActive =
-    location.pathname.startsWith("/admin/intent-tree") || location.pathname.startsWith("/admin/intent-list");
 
   useEffect(() => {
     setOpenGroups((prev) => ({
       ...prev,
-      ingestion: prev.ingestion || isIngestionActive,
-      intent: prev.intent || isIntentActive
+      ingestion: prev.ingestion || isIngestionActive
     }));
-  }, [isIngestionActive, isIntentActive]);
+  }, [isIngestionActive]);
 
   const handlePasswordSubmit = async () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword) {
@@ -416,10 +336,10 @@ export function AdminLayout() {
       <aside className={cn("admin-sidebar", collapsed && "admin-sidebar--collapsed")}>
         <div className="admin-sidebar__brand">
           <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-            <div className="admin-sidebar__logo">R</div>
+            <div className="admin-sidebar__logo">S</div>
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="admin-sidebar__title">Ragent AI 管理后台</h1>
+                <h1 className="admin-sidebar__title">知识库 Agent 控制台</h1>
                 <p className="admin-sidebar__subtitle">Knowledge Console</p>
               </div>
             )}
@@ -564,10 +484,7 @@ export function AdminLayout() {
       </aside>
 
       <div
-        className={cn(
-          "admin-main flex min-h-screen flex-1 flex-col overflow-auto",
-          isDashboardRoute && "dashboard-scroll-shell"
-        )}
+        className="admin-main flex min-h-screen flex-1 flex-col overflow-auto"
       >
         <header className="admin-topbar">
           <div className="admin-topbar-inner">
@@ -597,7 +514,7 @@ export function AdminLayout() {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
-                  placeholder="筛选知识库..."
+                  placeholder="搜索个人知识库或资料..."
                   className="pl-10 pr-16"
                 />
                 <span className="admin-topbar-kbd">Ctrl K</span>
@@ -611,7 +528,7 @@ export function AdminLayout() {
                     ) : null}
                     {kbOptions.length > 0 ? (
                       <div className="admin-topbar-suggest-section">
-                        <div className="admin-topbar-suggest-group">知识库</div>
+                        <div className="admin-topbar-suggest-group">个人知识库</div>
                         {kbOptions.map((kb) => (
                           <button
                             key={kb.id}
@@ -624,7 +541,7 @@ export function AdminLayout() {
                           >
                             <span className="font-medium text-slate-900">{kb.name}</span>
                             <span className="text-xs text-slate-400">
-                              {kb.collectionName || "未设置 Collection"}
+                              {kb.collectionName || "未设置向量集合"}
                             </span>
                           </button>
                         ))}
@@ -632,7 +549,7 @@ export function AdminLayout() {
                     ) : null}
                     {docOptions.length > 0 ? (
                       <div className="admin-topbar-suggest-section">
-                        <div className="admin-topbar-suggest-group">文档</div>
+                        <div className="admin-topbar-suggest-group">知识资料</div>
                         {docOptions.map((doc) => (
                           <button
                             key={doc.id}
@@ -645,7 +562,7 @@ export function AdminLayout() {
                           >
                             <span className="font-medium text-slate-900">{doc.docName}</span>
                             <span className="text-xs text-slate-400">
-                              {doc.kbName || `知识库 ${doc.kbId}`}
+                              {doc.kbName || `个人知识库 ${doc.kbId}`}
                             </span>
                           </button>
                         ))}
@@ -665,7 +582,7 @@ export function AdminLayout() {
                 onClick={() => navigate("/chat")}
               >
                 <MessageSquare className="h-4 w-4" />
-                返回聊天
+                返回问答工作台
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -675,17 +592,17 @@ export function AdminLayout() {
                     aria-label="用户菜单"
                   >
                     <Avatar
-                      name={user?.username || "管理员"}
+                      name={user?.username || "知识库管理员"}
                       src={showAvatar ? avatarUrl : undefined}
-                      className="h-8 w-8 border-slate-200 bg-indigo-50 text-xs font-semibold text-indigo-600"
+                      className="h-8 w-8 border-slate-200 bg-teal-50 text-xs font-semibold text-teal-700"
                     />
-                    <span className="hidden sm:inline">{user?.username || "管理员"}</span>
+                    <span className="hidden sm:inline">{user?.username || "知识库管理员"}</span>
                     <ChevronDown className="h-4 w-4 text-slate-400" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" sideOffset={8} className="w-44">
                   <div className="px-3 py-2 text-xs text-slate-500">
-                    {user?.username || "管理员"} · {roleLabel}
+                    {user?.username || "知识库管理员"} · {roleLabel}
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setPasswordOpen(true)}>

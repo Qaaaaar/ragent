@@ -36,7 +36,7 @@ import { getSystemSettings, type ModelCandidate } from "@/services/settingsServi
 import { getErrorMessage } from "@/utils/error";
 
 const formSchema = z.object({
-  name: z.string().min(1, "请输入知识库名称").max(50, "名称不能超过50个字符"),
+  name: z.string().min(1, "请输入个人知识库名称").max(50, "名称不能超过50个字符"),
   embeddingModel: z.string().min(1, "请选择Embedding模型"),
   collectionName: z
     .string()
@@ -142,9 +142,9 @@ export function CreateKnowledgeBaseDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>创建知识库</DialogTitle>
+          <DialogTitle>创建个人知识库</DialogTitle>
           <DialogDescription>
-            创建一个新的知识库，用于存储和检索文档
+            创建新的个人知识库，用于存储课程笔记、技术文档和论文资料
           </DialogDescription>
         </DialogHeader>
 
@@ -155,12 +155,12 @@ export function CreateKnowledgeBaseDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>知识库名称</FormLabel>
+                  <FormLabel>个人知识库名称</FormLabel>
                   <FormControl>
-                    <Input placeholder="例如：产品文档库" {...field} />
+                    <Input placeholder="例如：课程笔记库" {...field} />
                   </FormControl>
                   <FormDescription>
-                    为知识库起一个易于识别的名称
+                    为个人知识库起一个易于识别的名称
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -203,7 +203,7 @@ export function CreateKnowledgeBaseDialog({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    选择用于向量化文档的模型
+                    选择用于向量化学习资料的模型
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -217,7 +217,7 @@ export function CreateKnowledgeBaseDialog({
                 <FormItem>
                   <FormLabel>Collection名称</FormLabel>
                   <FormControl>
-                    <Input placeholder="例如：productdocs" {...field} />
+                    <Input placeholder="例如：coursepapers" {...field} />
                   </FormControl>
                   <FormDescription>
                     只能包含小写英文字母和数字

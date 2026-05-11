@@ -29,7 +29,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
           <p className="text-base font-medium text-gray-900">
-            {currentSession?.title || "新对话"}
+            {currentSession?.title || "新问答会话"}
           </p>
         </div>
       </div>

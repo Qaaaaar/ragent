@@ -35,12 +35,12 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/50 to-blue-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900" />
       <div className="relative z-10 w-full max-w-md rounded-3xl border border-border/70 bg-background/80 p-8 shadow-soft backdrop-blur">
         <div className="mb-6">
-          <p className="font-display text-2xl font-semibold">欢迎回来</p>
+          <p className="font-display text-2xl font-semibold">个人知识库 Agent</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            登录后继续你的检索增强对话。
+            登录后管理课程笔记、技术文档、论文资料与多轮问答。
           </p>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>

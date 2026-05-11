@@ -68,7 +68,7 @@ export function KnowledgeChunksPage() {
       const data = await getDocument(docId);
       setDoc(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载文档失败"));
+      toast.error(getErrorMessage(error, "加载学习资料失败"));
       console.error(error);
     }
   };
@@ -84,7 +84,7 @@ export function KnowledgeChunksPage() {
       });
       setPageData(data);
     } catch (error) {
-      toast.error(getErrorMessage(error, "加载分块失败"));
+      toast.error(getErrorMessage(error, "加载知识切片失败"));
       console.error(error);
     } finally {
       setLoading(false);
@@ -130,14 +130,14 @@ export function KnowledgeChunksPage() {
   const handleBatchToggle = async (enabled: boolean) => {
     if (!docId) return;
     if (selectedList.length === 0) {
-      toast.error("请选择需要操作的分块");
+      toast.error("请选择需要操作的知识切片");
       return;
     }
     const targetValue = enabled ? 1 : 0;
     const selectedChunks = chunks.filter((c) => selectedList.includes(String(c.id)));
     const needChange = selectedChunks.some((c) => c.enabled !== targetValue);
     if (!needChange) {
-      toast.info(enabled ? "所选分块已全部启用" : "所选分块已全部禁用");
+      toast.info(enabled ? "所选知识切片已全部启用" : "所选知识切片已全部禁用");
       return;
     }
     try {
@@ -181,18 +181,18 @@ export function KnowledgeChunksPage() {
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">分块管理</h1>
+          <h1 className="admin-page-title">内容切片管理</h1>
           <p className="admin-page-subtitle">
-            {doc?.docName || docId} {kbId ? `（知识库: ${kbId}）` : ""}
+            {doc?.docName || docId} {kbId ? `（个人知识库: ${kbId}）` : ""}
           </p>
         </div>
         <div className="admin-page-actions">
           <Button variant="outline" onClick={() => navigate(`/admin/knowledge/${kbId}`)}>
-            返回文档
+            返回资料
           </Button>
           <Button className="admin-primary-gradient" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            新建分块
+            新建切片
           </Button>
         </div>
       </div>
@@ -201,8 +201,8 @@ export function KnowledgeChunksPage() {
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>Chunk 列表</CardTitle>
-              <CardDescription>支持编辑、启停、批量操作</CardDescription>
+              <CardTitle>切片列表</CardTitle>
+              <CardDescription>管理学习资料被检索召回的知识片段</CardDescription>
             </div>
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
               <Select
@@ -246,7 +246,7 @@ export function KnowledgeChunksPage() {
           {loading ? (
             <div className="py-8 text-center text-muted-foreground">加载中...</div>
           ) : chunks.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">暂无分块</div>
+            <div className="py-8 text-center text-muted-foreground">暂无知识切片</div>
           ) : (
             <Table className="min-w-[960px]">
               <TableHeader>
@@ -379,8 +379,8 @@ export function KnowledgeChunksPage() {
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => (!open ? setDeleteTarget(null) : null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除分块？</AlertDialogTitle>
-            <AlertDialogDescription>该分块将被删除且向量会清理。</AlertDialogDescription>
+            <AlertDialogTitle>确认删除知识切片？</AlertDialogTitle>
+            <AlertDialogDescription>该知识切片将被删除且向量会清理。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -451,8 +451,8 @@ function ChunkDialog({ mode, open, chunk, onOpenChange, onSubmit }: ChunkDialogP
         onCloseAutoFocus={(e) => { e.preventDefault(); requestAnimationFrame(() => (document.activeElement as HTMLElement)?.blur()); }}
       >
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "新建分块" : "编辑分块"}</DialogTitle>
-          <DialogDescription>手动维护分块内容</DialogDescription>
+          <DialogTitle>{mode === "create" ? "新建知识切片" : "编辑知识切片"}</DialogTitle>
+          <DialogDescription>手动维护学习资料的可召回内容片段</DialogDescription>
         </DialogHeader>
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 pb-3 sidebar-scroll">
           {mode === "create" && (

@@ -141,7 +141,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         blockquote({ children, ...props }) {
           return (
             <blockquote
-              className="my-3 border-l-4 border-[#3B82F6] bg-[#F0F7FF] pl-3 pr-3 py-2 italic text-[#333333] dark:border-[#60A5FA] dark:bg-[#1A2332] dark:text-[#CCCCCC]"
+              className="my-3 border-l-4 border-[#0F766E] bg-[#ECFDF5] pl-3 pr-3 py-2 italic text-[#333333] dark:border-[#5EEAD4] dark:bg-[#12312F] dark:text-[#CCCCCC]"
               {...props}
             >
               {children}
