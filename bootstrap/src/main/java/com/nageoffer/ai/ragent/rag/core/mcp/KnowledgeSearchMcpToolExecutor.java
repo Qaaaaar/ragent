@@ -52,7 +52,7 @@ public class KnowledgeSearchMcpToolExecutor implements McpToolExecutor {
     public Tool getToolDefinition() {
         return Tool.builder()
                 .name(AgentToolNames.KNOWLEDGE_SEARCH)
-                .description("Search the enterprise knowledge base for grounding evidence, document chunks, policies, manuals, citations, and project-specific facts.")
+                .description("Search the personal knowledge base for grounding evidence, document chunks, citations, and project-specific facts. Use only returned chunks as evidence; if no chunks are returned, do not answer from general knowledge.")
                 .inputSchema(new JsonSchema(
                         "object",
                         Map.of(
@@ -166,7 +166,12 @@ public class KnowledgeSearchMcpToolExecutor implements McpToolExecutor {
         payload.put("topK", topK);
         payload.put("collectionName", collectionName);
         payload.put("metadataFilters", metadataFilters);
-        payload.put("count", chunks == null ? 0 : chunks.size());
+        int count = chunks == null ? 0 : chunks.size();
+        payload.put("count", count);
+        payload.put("evidenceStatus", count > 0 ? "FOUND" : "NO_EVIDENCE");
+        if (count == 0) {
+            payload.put("answerPolicy", "Do not answer from general knowledge. Final answer must be: 未检索到与问题相关的文档内容。");
+        }
         payload.put("chunks", chunks == null ? List.of() : chunks.stream()
                 .map(chunk -> toChunkPayload(chunk, collectionName))
                 .toList());

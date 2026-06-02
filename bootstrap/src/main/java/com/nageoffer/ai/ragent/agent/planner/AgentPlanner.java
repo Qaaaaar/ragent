@@ -21,5 +21,5 @@ import com.nageoffer.ai.ragent.agent.core.AgentContext;
 
 public interface AgentPlanner {
 
-    AgentPlan plan(AgentContext context);
+    AgentPlannerResult plan(AgentContext context);
 }

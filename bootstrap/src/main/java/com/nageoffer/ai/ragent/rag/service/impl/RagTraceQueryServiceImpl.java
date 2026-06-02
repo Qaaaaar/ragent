@@ -18,6 +18,8 @@
 package com.nageoffer.ai.ragent.rag.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -52,6 +54,10 @@ public class RagTraceQueryServiceImpl implements RagTraceQueryService {
     private final RagTraceRunMapper runMapper;
     private final RagTraceNodeMapper nodeMapper;
     private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
+
+    private static final TypeReference<Map<String, Object>> EXTRA_DATA_TYPE = new TypeReference<>() {
+    };
 
     @Override
     public IPage<RagTraceRunVO> pageRuns(RagTraceRunPageRequest request) {
@@ -115,6 +121,7 @@ public class RagTraceQueryServiceImpl implements RagTraceQueryService {
                 .durationMs(run.getDurationMs())
                 .startTime(run.getStartTime())
                 .endTime(run.getEndTime())
+                .extraData(parseExtraData(run.getExtraData()))
                 .build();
     }
 
@@ -167,6 +174,19 @@ public class RagTraceQueryServiceImpl implements RagTraceQueryService {
                 .durationMs(node.getDurationMs())
                 .startTime(node.getStartTime())
                 .endTime(node.getEndTime())
+                .extraData(parseExtraData(node.getExtraData()))
                 .build();
+    }
+
+    private Map<String, Object> parseExtraData(String extraData) {
+        if (StrUtil.isBlank(extraData)) {
+            return Collections.emptyMap();
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(extraData, EXTRA_DATA_TYPE);
+            return parsed == null ? Collections.emptyMap() : parsed;
+        } catch (Exception ignored) {
+            return Collections.emptyMap();
+        }
     }
 }

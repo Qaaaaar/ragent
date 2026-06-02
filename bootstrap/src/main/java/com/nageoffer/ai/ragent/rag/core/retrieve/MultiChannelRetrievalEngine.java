@@ -25,13 +25,16 @@ import com.nageoffer.ai.ragent.rag.core.retrieve.channel.SearchChannelResult;
 import com.nageoffer.ai.ragent.rag.core.retrieve.channel.SearchContext;
 import com.nageoffer.ai.ragent.rag.core.retrieve.postprocessor.SearchResultPostProcessor;
 import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
+import com.nageoffer.ai.ragent.rag.service.RagTraceReporter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -50,9 +53,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MultiChannelRetrievalEngine {
 
+    private static final int TRACE_CHUNK_LIMIT = 20;
+    private static final int TRACE_TEXT_PREVIEW_LENGTH = 200;
+
     private final List<SearchChannel> searchChannels;
     private final List<SearchResultPostProcessor> postProcessors;
     private final Executor ragRetrievalExecutor;
+    private final RagTraceReporter traceReporter;
 
     /**
      * 执行多通道检索（仅 KB 场景）
@@ -63,17 +70,16 @@ public class MultiChannelRetrievalEngine {
      */
     @RagTraceNode(name = "multi-channel-retrieval", type = "RETRIEVE_CHANNEL")
     public List<RetrievedChunk> retrieveKnowledgeChannels(List<SubQuestionIntent> subIntents, int topK) {
-        // 构建检索上下文
         SearchContext context = buildSearchContext(subIntents, topK);
-
-        // 【阶段1：多通道并行检索】
         List<SearchChannelResult> channelResults = executeSearchChannels(context);
         if (CollUtil.isEmpty(channelResults)) {
+            recordRetrievalTrace(context, List.of(), List.of());
             return List.of();
         }
 
-        // 【阶段2：后置处理器链】
-        return executePostProcessors(channelResults, context);
+        List<RetrievedChunk> chunks = executePostProcessors(channelResults, context);
+        recordRetrievalTrace(context, channelResults, chunks);
+        return chunks;
     }
 
     /**
@@ -101,7 +107,7 @@ public class MultiChannelRetrievalEngine {
                                 return channel.search(context);
                             } catch (Exception e) {
                                 log.error("检索通道 {} 执行失败", channel.getName(), e);
-                                return emptyResult(channel);
+                                return emptyResult(channel, e);
                             }
                         },
                         ragRetrievalExecutor
@@ -195,12 +201,55 @@ public class MultiChannelRetrievalEngine {
         return chunks;
     }
 
-    private SearchChannelResult emptyResult(SearchChannel channel) {
+    private SearchChannelResult emptyResult(SearchChannel channel, Exception e) {
         return SearchChannelResult.builder()
                 .channelType(channel.getType())
                 .channelName(channel.getName())
                 .chunks(List.of())
+                .errorMessage(e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()))
                 .build();
+    }
+
+    private void recordRetrievalTrace(SearchContext context,
+                                      List<SearchChannelResult> channelResults,
+                                      List<RetrievedChunk> chunks) {
+        Map<String, Object> retrieval = new LinkedHashMap<>();
+        retrieval.put("topK", context.getTopK());
+        retrieval.put("channelCount", channelResults.size());
+        retrieval.put("channels", channelResults.stream().map(this::channelSummary).toList());
+        retrieval.put("finalChunkCount", chunks.size());
+        retrieval.put("chunks", chunks.stream()
+                .limit(TRACE_CHUNK_LIMIT)
+                .map(this::chunkSummary)
+                .toList());
+        traceReporter.mergeCurrentNodeExtraData(Map.of("retrieval", retrieval));
+    }
+
+    private Map<String, Object> channelSummary(SearchChannelResult result) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("type", result.getChannelType() == null ? null : result.getChannelType().name());
+        summary.put("name", result.getChannelName());
+        summary.put("latencyMs", result.getLatencyMs());
+        summary.put("chunkCount", result.getChunks() == null ? 0 : result.getChunks().size());
+        if (result.getErrorMessage() != null) {
+            summary.put("errorMessage", result.getErrorMessage());
+        }
+        return summary;
+    }
+
+    private Map<String, Object> chunkSummary(RetrievedChunk chunk) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("id", chunk.getId());
+        summary.put("score", chunk.getScore());
+        summary.put("textPreview", preview(chunk.getText()));
+        return summary;
+    }
+
+    private String preview(String text) {
+        if (text == null || text.length() <= TRACE_TEXT_PREVIEW_LENGTH) {
+            return text;
+        }
+        return text.substring(0, TRACE_TEXT_PREVIEW_LENGTH);
     }
 
     /**

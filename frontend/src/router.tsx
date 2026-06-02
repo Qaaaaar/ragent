@@ -8,6 +8,7 @@ import { KnowledgeListPage } from "@/pages/admin/knowledge/KnowledgeListPage";
 import { KnowledgeDocumentsPage } from "@/pages/admin/knowledge/KnowledgeDocumentsPage";
 import { KnowledgeChunksPage } from "@/pages/admin/knowledge/KnowledgeChunksPage";
 import { IngestionPage } from "@/pages/admin/ingestion/IngestionPage";
+import { IntentTreePage } from "@/pages/admin/intent/IntentTreePage";
 import { RagTracePage } from "@/pages/admin/traces/RagTracePage";
 import { RagTraceDetailPage } from "@/pages/admin/traces/RagTraceDetailPage";
 import { SystemSettingsPage } from "@/pages/admin/settings/SystemSettingsPage";
@@ -105,6 +106,10 @@ export const router = createBrowserRouter([
       {
         path: "ingestion",
         element: <IngestionPage />
+      },
+      {
+        path: "intent-tree",
+        element: <IntentTreePage />
       },
       {
         path: "traces",

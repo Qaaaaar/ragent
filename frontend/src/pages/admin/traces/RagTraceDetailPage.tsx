@@ -69,6 +69,25 @@ const getStatusColors = (status?: string | null) => {
   return STATUS_COLORS[normalized || "default"];
 };
 
+type ExtraRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): ExtraRecord | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as ExtraRecord;
+};
+
+const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
+
+const extraNumber = (value: unknown): number | null => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const extraText = (value: unknown): string => {
+  if (value === null || value === undefined) return "-";
+  return String(value);
+};
+
 // ============ 子组件 ============
 
 function MetricItem({
@@ -114,6 +133,140 @@ function TimeScale({ totalMs }: { totalMs: number }) {
             {formatDuration((totalMs * percent) / 100)}
           </span>
             </div>
+        ))}
+      </div>
+  );
+}
+
+function TraceExtraDataPanel({ detail }: { detail: RagTraceDetail }) {
+  const streamData = asRecord(asRecord(detail.run.extraData)?.stream);
+  const llmItems = detail.nodes
+      .map((node) => ({ node, data: asRecord(asRecord(node.extraData)?.llmStream) }))
+      .filter((item): item is { node: RagTraceDetail["nodes"][number]; data: ExtraRecord } => Boolean(item.data));
+  const retrievalItems = detail.nodes
+      .map((node) => ({ node, data: asRecord(asRecord(node.extraData)?.retrieval) }))
+      .filter((item): item is { node: RagTraceDetail["nodes"][number]; data: ExtraRecord } => Boolean(item.data));
+  const nodeErrors = detail.nodes.filter((node) =>
+      node.errorMessage || asRecord(asRecord(node.extraData)?.llmStream)?.errorMessage
+  );
+
+  return (
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-medium text-slate-700">接口耗时</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-2 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-500">总耗时</span>
+              <span className="font-medium text-slate-800">{formatDuration(detail.run.durationMs ?? undefined)}</span>
+            </div>
+            {streamData && (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">取消</span>
+                    <span className="font-medium text-slate-800">{streamData.cancelled ? "是" : "否"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">回答长度</span>
+                    <span className="font-medium text-slate-800">{extraText(streamData.answerLength)}</span>
+                  </div>
+                </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-medium text-slate-700">模型耗时</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-3 text-sm">
+            {llmItems.length === 0 ? (
+                <p className="text-slate-400">暂无模型耗时</p>
+            ) : llmItems.map(({ node, data }) => (
+                <div key={node.nodeId} className="border-b border-slate-100 last:border-0 pb-2 last:pb-0">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-700 truncate">{node.nodeName || node.methodName || node.nodeId}</span>
+                    <span className="font-medium text-slate-800">{formatDuration(extraNumber(data.durationMs))}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>首包 {formatDuration(extraNumber(data.firstTokenLatencyMs))}</span>
+                    <span>状态 {extraText(data.status)}</span>
+                    <span>输出 {extraText(data.contentLength)}</span>
+                  </div>
+                  {data.errorMessage && <p className="mt-1 text-xs text-red-600">{extraText(data.errorMessage)}</p>}
+                </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-medium text-slate-700">异常信息</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-2 text-sm">
+            {nodeErrors.length === 0 && !detail.run.errorMessage ? (
+                <p className="text-slate-400">暂无异常</p>
+            ) : (
+                <>
+                  {detail.run.errorMessage && <p className="text-red-600">{detail.run.errorMessage}</p>}
+                  {nodeErrors.map((node) => {
+                    const llm = asRecord(asRecord(node.extraData)?.llmStream);
+                    return (
+                        <div key={node.nodeId} className="text-xs">
+                          <span className="font-medium text-slate-700">{node.nodeName || node.methodName || node.nodeId}: </span>
+                          <span className="text-red-600">{node.errorMessage || extraText(llm?.errorMessage)}</span>
+                        </div>
+                    );
+                  })}
+                </>
+            )}
+          </CardContent>
+        </Card>
+
+        {retrievalItems.map(({ node, data }) => (
+            <Card key={node.nodeId} className="xl:col-span-3">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium text-slate-700">召回结果</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3 text-sm">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <span>节点 {node.nodeName || node.methodName || node.nodeId}</span>
+                  <span>TopK {extraText(data.topK)}</span>
+                  <span>通道 {extraText(data.channelCount)}</span>
+                  <span>最终 Chunk {extraText(data.finalChunkCount)}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {asArray(data.channels).map((item, index) => {
+                    const channel = asRecord(item) || {};
+                    return (
+                        <div key={index} className="rounded border border-slate-100 px-3 py-2">
+                          <div className="flex justify-between gap-3">
+                            <span className="font-medium text-slate-700">{extraText(channel.name)}</span>
+                            <span className="text-slate-500">{formatDuration(extraNumber(channel.latencyMs))}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">Chunk {extraText(channel.chunkCount)} · {extraText(channel.type)}</div>
+                          {channel.errorMessage && <p className="mt-1 text-xs text-red-600">{extraText(channel.errorMessage)}</p>}
+                        </div>
+                    );
+                  })}
+                </div>
+                <div className="space-y-2">
+                  {asArray(data.chunks).slice(0, 20).map((item, index) => {
+                    const chunk = asRecord(item) || {};
+                    return (
+                        <div key={index} className="rounded bg-slate-50 px-3 py-2">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                            <span className="font-mono">{extraText(chunk.id)}</span>
+                            <span>score {extraText(chunk.score)}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{extraText(chunk.textPreview)}</p>
+                        </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
         ))}
       </div>
   );
@@ -468,6 +621,8 @@ export function RagTraceDetailPage() {
               value={formatDuration(stats.avgDuration)}
           />
         </div>
+
+        <TraceExtraDataPanel detail={detail} />
 
         {/* 瀑布图 */}
         <Card>

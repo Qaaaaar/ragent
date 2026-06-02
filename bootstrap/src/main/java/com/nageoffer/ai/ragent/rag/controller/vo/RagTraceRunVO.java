@@ -21,6 +21,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.Map;
 
 /**
  * RAG Trace 运行记录
@@ -52,4 +53,6 @@ public class RagTraceRunVO {
     private Date startTime;
 
     private Date endTime;
+
+    private Map<String, Object> extraData;
 }

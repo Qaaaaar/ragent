@@ -30,6 +30,7 @@ public final class RagTraceContext {
 
     private static final TransmittableThreadLocal<String> TRACE_ID = new TransmittableThreadLocal<>();
     private static final TransmittableThreadLocal<String> TASK_ID = new TransmittableThreadLocal<>();
+    private static final TransmittableThreadLocal<Long> RUN_START_MILLIS = new TransmittableThreadLocal<>();
     private static final TransmittableThreadLocal<Deque<String>> NODE_STACK = new TransmittableThreadLocal<>();
 
     private RagTraceContext() {
@@ -49,6 +50,14 @@ public final class RagTraceContext {
 
     public static void setTaskId(String taskId) {
         TASK_ID.set(taskId);
+    }
+
+    public static Long getRunStartMillis() {
+        return RUN_START_MILLIS.get();
+    }
+
+    public static void setRunStartMillis(Long runStartMillis) {
+        RUN_START_MILLIS.set(runStartMillis);
     }
 
     public static int depth() {
@@ -84,6 +93,7 @@ public final class RagTraceContext {
     public static void clear() {
         TRACE_ID.remove();
         TASK_ID.remove();
+        RUN_START_MILLIS.remove();
         NODE_STACK.remove();
     }
 }

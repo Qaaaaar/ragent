@@ -54,6 +54,8 @@ public class SearchChannelResult {
      */
     private long latencyMs;
 
+    private String errorMessage;
+
     /**
      * 扩展元数据
      */

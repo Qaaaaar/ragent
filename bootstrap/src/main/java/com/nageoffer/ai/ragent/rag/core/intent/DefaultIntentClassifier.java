@@ -77,6 +77,7 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
                 intentTreeCacheManager.saveIntentTreeToCache(roots);
             }
         }
+        roots = filterLegacySampleRoots(roots);
 
         // 3. 构建内存结构（临时使用）
         if (CollUtil.isEmpty(roots)) {
@@ -137,6 +138,10 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
     public List<NodeScore> classifyTargets(String question) {
         // 每次都从Redis读取最新数据
         IntentTreeData data = loadIntentTreeData();
+        if (CollUtil.isEmpty(data.leafNodes)) {
+            log.warn("No enabled intent tree leaf nodes found. Initialize intent data or create enabled intent nodes before classification.");
+            return List.of();
+        }
 
         String systemPrompt = buildPrompt(data.leafNodes);
         ChatRequest request = ChatRequest.builder()
@@ -269,6 +274,7 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
         );
 
         if (intentNodeDOList.isEmpty()) {
+            log.warn("No enabled intent nodes found in database table t_intent_node.");
             return List.of();
         }
 
@@ -313,9 +319,23 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
         }
 
         // 4. 填充 fullPath（跟你原来的 fillFullPath 一样的逻辑）
+        roots = filterLegacySampleRoots(roots);
         fillFullPath(roots, null);
 
         return roots;
+    }
+
+    private List<IntentNode> filterLegacySampleRoots(List<IntentNode> roots) {
+        if (CollUtil.isEmpty(roots)) {
+            return List.of();
+        }
+        return roots.stream()
+                .filter(node -> !isLegacySampleRoot(node.getId()))
+                .toList();
+    }
+
+    private boolean isLegacySampleRoot(String intentCode) {
+        return "group".equals(intentCode) || "biz".equals(intentCode) || "sales".equals(intentCode);
     }
 
     /**

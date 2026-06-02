@@ -36,6 +36,50 @@ public class IntentTreeFactory {
 
     public static List<IntentNode> buildIntentTree() {
         List<IntentNode> roots = new ArrayList<>();
+        if (usePersonalKnowledgeBaseDefaults()) {
+            IntentNode sys = IntentNode.builder()
+                    .id("sys")
+                    .name("系统交互")
+                    .level(DOMAIN)
+                    .kind(IntentKind.SYSTEM)
+                    .build();
+
+            IntentNode welcome = IntentNode.builder()
+                    .id("sys-welcome")
+                    .name("欢迎与问候")
+                    .level(CATEGORY)
+                    .parentId(sys.getId())
+                    .description("用户与助手打招呼，如：你好、早上好、hi、在吗等")
+                    .examples(List.of(
+                            "你好",
+                            "hello",
+                            "早上好",
+                            "在吗",
+                            "嗨"
+                    ))
+                    .kind(IntentKind.SYSTEM)
+                    .build();
+
+            IntentNode aboutBot = IntentNode.builder()
+                    .id("sys-about-bot")
+                    .name("关于助手")
+                    .level(CATEGORY)
+                    .parentId(sys.getId())
+                    .description("询问助手是做什么的、是谁、能做什么等")
+                    .examples(List.of(
+                            "你是谁",
+                            "你是做什么的",
+                            "你能帮我做什么",
+                            "你是什么AI"
+                    ))
+                    .kind(IntentKind.SYSTEM)
+                    .build();
+
+            sys.setChildren(List.of(welcome, aboutBot));
+            roots.add(sys);
+            fillFullPath(roots, null);
+            return roots;
+        }
 
         // ========== 1. 集团信息化 ==========
         IntentNode group = IntentNode.builder()
@@ -306,6 +350,10 @@ public class IntentTreeFactory {
                 fillFullPath(node.getChildren(), node);
             }
         }
+    }
+
+    private static boolean usePersonalKnowledgeBaseDefaults() {
+        return true;
     }
 
     // =====================常量方法====================

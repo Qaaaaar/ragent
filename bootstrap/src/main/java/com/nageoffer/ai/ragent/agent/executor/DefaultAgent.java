@@ -27,31 +27,21 @@ import com.nageoffer.ai.ragent.agent.core.AgentResponse;
 import com.nageoffer.ai.ragent.agent.core.AgentStep;
 import com.nageoffer.ai.ragent.agent.memory.AgentMemory;
 import com.nageoffer.ai.ragent.agent.memory.MemoryMessage;
-import com.nageoffer.ai.ragent.agent.planner.AgentPlan;
 import com.nageoffer.ai.ragent.agent.planner.AgentPlanner;
-import com.nageoffer.ai.ragent.agent.planner.ToolCallSpec;
-import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
-import com.nageoffer.ai.ragent.agent.tool.AgentTool;
-import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
+import com.nageoffer.ai.ragent.agent.planner.AgentPlannerResult;
+import com.nageoffer.ai.ragent.agent.rag.AgentDocument;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
-import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
-import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
-import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.framework.trace.RagTraceNode;
-import com.nageoffer.ai.ragent.infra.chat.LLMService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -65,9 +55,6 @@ public class DefaultAgent implements Agent {
     private final AgentProperties properties;
     private final AgentPlanner planner;
     private final AgentMemory memory;
-    private final ToolRegistry toolRegistry;
-    private final AgentPromptBuilder promptBuilder;
-    private final LLMService llmService;
     private final AgentClarificationService clarificationService;
 
     @Override
@@ -79,13 +66,8 @@ public class DefaultAgent implements Agent {
                 .memoryMessages(memory.load(actualRequest.getSessionId(), properties.getMemory().getMaxMessages()))
                 .build();
 
-        boolean toolsEnabled = properties.getTools().isEnabled() && actualRequest.isEnableToolCalling();
-        int maxIterations = resolveMaxIterations(actualRequest);
-        Set<String> calledToolSignatures = new HashSet<>();
-        boolean stoppedByMaxIterations = false;
-
-        log.info("Agent run started, sessionId={}, toolsEnabled={}, knowledgeSearchEnabled={}, maxIterations={}",
-                actualRequest.getSessionId(), toolsEnabled, isKnowledgeSearchEnabled(actualRequest), maxIterations);
+        log.info("Agent run started, sessionId={}, maxIterations={}",
+                actualRequest.getSessionId(), resolveMaxIterations(actualRequest));
 
         try {
             Optional<String> clarification = detectClarification(context);
@@ -106,59 +88,34 @@ public class DefaultAgent implements Agent {
                         .build();
             }
 
-            for (int iteration = 1; iteration <= maxIterations; iteration++) {
-                context.setIteration(iteration);
-                AgentPlan plan = plan(context);
-                if (plan.isFinish()) {
-                    addStep(context, AgentActionType.FINISH, "finish", "", "Planner requested finish.", 0L,
-                            "Planner indicated the task can finish.");
-                    break;
-                }
-                if (plan.isShouldAnswerDirectly()) {
-                    addStep(context, AgentActionType.REFLECT, "direct-answer", "", "No external context required.", 0L,
-                            "Planner selected direct answer.");
-                    break;
-                }
-
-                boolean didWork = false;
-                if (plan.isNeedTool()) {
-                    if (toolsEnabled) {
-                        didWork = callTools(context, plan.getToolCalls(), calledToolSignatures) || didWork;
-                    } else {
-                        addStep(context, AgentActionType.MCP_TOOL_CALL, "mcp", "", "Tool calling disabled.", 0L,
-                                "Skipped tools because tool calling is disabled.");
-                    }
-                }
-
-                if (didWork) {
-                    addStep(context, AgentActionType.REFLECT, "context-check", "", "Context gathered.", 0L,
-                            "Collected external context for the final answer.");
-                }
-                if (!didWork) {
-                    break;
-                }
-                if (iteration == maxIterations) {
-                    stoppedByMaxIterations = true;
-                }
+            AgentPlannerResult result = planner.plan(context);
+            if (result == null) {
+                throw new IllegalStateException("Agent planner returned null result");
+            }
+            if (!result.isSuccess()) {
+                return AgentResponse.builder()
+                        .answer("")
+                        .steps(safeSteps(result, context))
+                        .toolResults(safeToolResults(result, context))
+                        .retrievedContext(safeRetrievedContext(result, context))
+                        .success(false)
+                        .clarificationRequired(false)
+                        .errorMessage(result.getErrorMessage())
+                        .build();
             }
 
-            if (stoppedByMaxIterations) {
-                addStep(context, AgentActionType.REFLECT, "max-iterations", "", "Reached maxIterations.", 0L,
-                        "Stopped iterative planning at the configured limit.");
-            }
-
-            String answer = answer(context);
-            saveMemory(actualRequest, answer);
-            log.info("Agent run finished, sessionId={}, legacyDocs={}, toolResults={}, steps={}, success=true",
+            saveToolMemories(actualRequest.getSessionId(), safeToolResults(result, context));
+            saveMemory(actualRequest, result.getAnswer());
+            log.info("Agent run finished, sessionId={}, retrievedContext={}, toolResults={}, steps={}, success=true",
                     actualRequest.getSessionId(),
-                    context.getRetrievedContext().size(),
-                    context.getToolResults().size(),
-                    context.getSteps().size());
+                    safeRetrievedContext(result, context).size(),
+                    safeToolResults(result, context).size(),
+                    safeSteps(result, context).size());
             return AgentResponse.builder()
-                    .answer(answer)
-                    .steps(context.getSteps())
-                    .toolResults(context.getToolResults())
-                    .retrievedContext(context.getRetrievedContext())
+                    .answer(result.getAnswer())
+                    .steps(safeSteps(result, context))
+                    .toolResults(safeToolResults(result, context))
+                    .retrievedContext(safeRetrievedContext(result, context))
                     .success(true)
                     .clarificationRequired(false)
                     .build();
@@ -185,78 +142,6 @@ public class DefaultAgent implements Agent {
         return clarificationService.detectClarification(context);
     }
 
-    private AgentPlan plan(AgentContext context) {
-        long startMs = System.currentTimeMillis();
-        AgentPlan plan = planner.plan(context);
-        adaptLegacyRagPlan(plan, context);
-        context.setCurrentPlan(plan);
-        addStep(context, AgentActionType.PLAN, "planner", "", summarizePlan(plan),
-                System.currentTimeMillis() - startMs, plan.getReasoningSummary());
-        return plan;
-    }
-
-    private boolean callTools(AgentContext context, List<ToolCallSpec> toolCalls, Set<String> calledToolSignatures) {
-        if (toolCalls == null || toolCalls.isEmpty()) {
-            return false;
-        }
-        boolean didWork = false;
-        for (ToolCallSpec callSpec : toolCalls) {
-            String toolName = callSpec.getToolName();
-            Map<String, Object> arguments = safeArguments(callSpec.getArguments());
-            if (isKnowledgeSearchTool(toolName) && !isKnowledgeSearchEnabled(context.getRequest())) {
-                addStep(context, AgentActionType.MCP_TOOL_CALL, toolName, arguments.toString(),
-                        "Knowledge search disabled for this request.", 0L,
-                        "Skipped knowledge_search because it is disabled.");
-                continue;
-            }
-            String signature = toolName + ":" + arguments;
-            if (calledToolSignatures.contains(signature)) {
-                continue;
-            }
-            calledToolSignatures.add(signature);
-            didWork = true;
-            ToolCallResult result = callTool(toolName, arguments);
-            context.getToolResults().add(result);
-            saveToolMemory(context.getRequest().getSessionId(), result);
-            addStep(context, AgentActionType.MCP_TOOL_CALL, toolName, arguments.toString(),
-                    result.isSuccess() ? result.getRawResult() : result.getErrorMessage(),
-                    result.getLatencyMs(),
-                    result.isSuccess() ? "Called MCP tool." : "MCP tool call failed.");
-            log.info("Agent MCP tool call completed, sessionId={}, tool={}, success={}, latencyMs={}",
-                    context.getRequest().getSessionId(), toolName, result.isSuccess(), result.getLatencyMs());
-        }
-        return didWork;
-    }
-
-    private ToolCallResult callTool(String toolName, Map<String, Object> arguments) {
-        long startMs = System.currentTimeMillis();
-        return toolRegistry.findByName(toolName)
-                .map(tool -> tool.call(arguments))
-                .orElseGet(() -> ToolCallResult.builder()
-                        .toolName(toolName)
-                        .arguments(arguments)
-                        .rawResult("")
-                        .success(false)
-                        .errorMessage("Tool not found: " + toolName)
-                        .latencyMs(System.currentTimeMillis() - startMs)
-                        .build());
-    }
-
-    private String answer(AgentContext context) {
-        long startMs = System.currentTimeMillis();
-        String prompt = promptBuilder.buildFinalAnswerPrompt(context);
-        ChatRequest chatRequest = ChatRequest.builder()
-                .messages(List.of(ChatMessage.user(prompt)))
-                .temperature(0.2D)
-                .topP(0.8D)
-                .thinking(context.getRequest().isDeepThinking())
-                .build();
-        String answer = llmService.chat(chatRequest, properties.getAnswer().getModel());
-        addStep(context, AgentActionType.LLM_ANSWER, "final-answer", "", answer,
-                System.currentTimeMillis() - startMs, "Generated final answer.");
-        return answer;
-    }
-
     private void saveMemory(AgentRequest request, String answer) {
         memory.save(request.getSessionId(), MemoryMessage.builder()
                 .role(MemoryMessage.ROLE_USER)
@@ -268,15 +153,21 @@ public class DefaultAgent implements Agent {
                 .build());
     }
 
-    private void saveToolMemory(String sessionId, ToolCallResult result) {
-        String content = "tool=" + result.getToolName()
-                + ", success=" + result.isSuccess()
-                + ", result=" + truncate(result.isSuccess() ? result.getRawResult() : result.getErrorMessage(), TOOL_MEMORY_LIMIT);
-        memory.save(sessionId, MemoryMessage.builder()
-                .role(MemoryMessage.ROLE_TOOL)
-                .content(content)
-                .metadata(Map.of("toolName", result.getToolName(), "success", result.isSuccess()))
-                .build());
+    private void saveToolMemories(String sessionId, List<ToolCallResult> results) {
+        if (results == null || results.isEmpty()) {
+            return;
+        }
+        for (ToolCallResult result : results) {
+            String content = "tool=" + result.getToolName()
+                    + ", success=" + result.isSuccess()
+                    + ", result=" + truncate(result.isSuccess() ? result.getRawResult() : result.getErrorMessage(),
+                    TOOL_MEMORY_LIMIT);
+            memory.save(sessionId, MemoryMessage.builder()
+                    .role(MemoryMessage.ROLE_TOOL)
+                    .content(content)
+                    .metadata(toolMemoryMetadata(result))
+                    .build());
+        }
     }
 
     private AgentRequest normalizeRequest(AgentRequest request) {
@@ -298,65 +189,27 @@ public class DefaultAgent implements Agent {
         return request.getMaxIterations() > 0 ? request.getMaxIterations() : configured;
     }
 
-    private Map<String, Object> safeArguments(Map<String, Object> arguments) {
-        return arguments == null ? new LinkedHashMap<>() : new LinkedHashMap<>(arguments);
-    }
-
-    private void adaptLegacyRagPlan(AgentPlan plan, AgentContext context) {
-        if (plan == null || !plan.isNeedRag()) {
-            return;
-        }
-        if (plan.getToolCalls() == null) {
-            plan.setToolCalls(new ArrayList<>());
-        } else {
-            plan.setToolCalls(new ArrayList<>(plan.getToolCalls()));
-        }
-        if (plan.getToolCalls().stream().noneMatch(call -> isKnowledgeSearchTool(call.getToolName()))) {
-            plan.getToolCalls().add(knowledgeSearchCall(context));
-        }
-        plan.setNeedTool(true);
-        plan.setNeedRag(false);
-    }
-
-    private ToolCallSpec knowledgeSearchCall(AgentContext context) {
-        Map<String, Object> arguments = new LinkedHashMap<>();
-        arguments.put("query", context.getRequest().getUserInput());
-        Map<String, Object> metadata = context.getRequest().getMetadata();
-        copyMetadataArgument(metadata, arguments, "topK");
-        copyMetadataArgument(metadata, arguments, "collectionName");
-        copyMetadataArgument(metadata, arguments, "metadataFilters");
-        return ToolCallSpec.builder()
-                .toolName(AgentToolNames.KNOWLEDGE_SEARCH)
-                .arguments(arguments)
-                .build();
-    }
-
-    private void copyMetadataArgument(Map<String, Object> metadata, Map<String, Object> arguments, String key) {
-        if (metadata != null && metadata.containsKey(key)) {
-            arguments.put(key, metadata.get(key));
-        }
-    }
-
     private boolean isKnowledgeSearchEnabled(AgentRequest request) {
         return properties.getRag().isEnabled() && request.isEnableRag();
     }
 
-    private boolean isKnowledgeSearchTool(String toolName) {
-        return AgentToolNames.KNOWLEDGE_SEARCH.equals(toolName);
+    private List<AgentStep> safeSteps(AgentPlannerResult result, AgentContext context) {
+        return result.getSteps() == null ? context.getSteps() : result.getSteps();
     }
 
-    private String summarizePlan(AgentPlan plan) {
-        List<String> parts = new ArrayList<>();
-        if (plan.isShouldAnswerDirectly()) {
-            parts.add("direct");
-        }
-        if (plan.isNeedTool()) {
-            parts.add("tools=" + (plan.getToolCalls() == null ? 0 : plan.getToolCalls().size()));
-        }
-        if (plan.isFinish()) {
-            parts.add("finish");
-        }
-        return String.join(",", parts);
+    private List<ToolCallResult> safeToolResults(AgentPlannerResult result, AgentContext context) {
+        return result.getToolResults() == null ? context.getToolResults() : result.getToolResults();
+    }
+
+    private List<AgentDocument> safeRetrievedContext(AgentPlannerResult result, AgentContext context) {
+        return result.getRetrievedContext() == null ? context.getRetrievedContext() : result.getRetrievedContext();
+    }
+
+    private Map<String, Object> toolMemoryMetadata(ToolCallResult result) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("toolName", result.getToolName());
+        metadata.put("success", result.isSuccess());
+        return metadata;
     }
 
     private void addStep(AgentContext context, AgentActionType actionType, String actionName,

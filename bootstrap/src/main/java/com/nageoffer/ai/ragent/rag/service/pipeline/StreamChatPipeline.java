@@ -40,6 +40,8 @@ import com.nageoffer.ai.ragent.rag.dto.IntentGroup;
 import com.nageoffer.ai.ragent.rag.dto.RetrievalContext;
 import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
 import com.nageoffer.ai.ragent.rag.config.SearchChannelProperties;
+import com.nageoffer.ai.ragent.rag.service.RagTraceReporter;
+import com.nageoffer.ai.ragent.rag.service.handler.TraceStreamCallback;
 import com.nageoffer.ai.ragent.rag.service.handler.StreamTaskManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +76,7 @@ public class StreamChatPipeline {
     private final RAGPromptService promptBuilder;
     private final PromptTemplateLoader promptTemplateLoader;
     private final StreamTaskManager taskManager;
+    private final RagTraceReporter traceReporter;
 
     /**
      * 执行流式对话管道
@@ -201,7 +204,7 @@ public class StreamChatPipeline {
                 .temperature(0.7D)
                 .thinking(false)
                 .build();
-        return llmService.streamChat(req, callback);
+        return streamWithTrace(req, callback);
     }
 
     private StreamCancellationHandle streamLLMResponse(RewriteResult rewriteResult, RetrievalContext ctx,
@@ -231,6 +234,27 @@ public class StreamChatPipeline {
                 .topP(ctx.hasMcp() ? 0.8D : 1D)
                 .build();
 
-        return llmService.streamChat(chatRequest, callback);
+        return streamWithTrace(chatRequest, callback);
+    }
+
+    private StreamCancellationHandle streamWithTrace(ChatRequest chatRequest, StreamCallback callback) {
+        TraceStreamCallback traceCallback = new TraceStreamCallback(callback, traceReporter);
+        try {
+            return withTraceCancellation(llmService.streamChat(chatRequest, traceCallback), traceCallback);
+        } catch (RuntimeException e) {
+            traceCallback.onError(e);
+            throw e;
+        }
+    }
+
+    private StreamCancellationHandle withTraceCancellation(StreamCancellationHandle handle,
+                                                           TraceStreamCallback traceCallback) {
+        if (handle == null) {
+            return null;
+        }
+        return () -> {
+            traceCallback.onCancel();
+            handle.cancel();
+        };
     }
 }

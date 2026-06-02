@@ -21,6 +21,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.Map;
 
 /**
  * RAG Trace 节点明细
@@ -54,4 +55,6 @@ public class RagTraceNodeVO {
     private Date startTime;
 
     private Date endTime;
+
+    private Map<String, Object> extraData;
 }

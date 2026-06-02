@@ -17,6 +17,8 @@
 
 package com.nageoffer.ai.ragent.rag.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.nageoffer.ai.ragent.rag.dao.entity.RagTraceNodeDO;
 import com.nageoffer.ai.ragent.rag.dao.entity.RagTraceRunDO;
@@ -27,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * RAG Trace 记录服务实现
@@ -37,6 +41,10 @@ public class RagTraceRecordServiceImpl implements RagTraceRecordService {
 
     private final RagTraceRunMapper runMapper;
     private final RagTraceNodeMapper nodeMapper;
+    private final ObjectMapper objectMapper;
+
+    private static final TypeReference<Map<String, Object>> EXTRA_DATA_TYPE = new TypeReference<>() {
+    };
 
     @Override
     public void startRun(RagTraceRunDO run) {
@@ -50,6 +58,25 @@ public class RagTraceRecordServiceImpl implements RagTraceRecordService {
                 .errorMessage(errorMessage)
                 .endTime(endTime)
                 .durationMs(durationMs)
+                .build();
+        runMapper.update(update, Wrappers.lambdaUpdate(RagTraceRunDO.class)
+                .eq(RagTraceRunDO::getTraceId, traceId));
+    }
+
+    @Override
+    public void mergeRunExtraData(String traceId, Map<String, Object> extraData) {
+        if (traceId == null || extraData == null || extraData.isEmpty()) {
+            return;
+        }
+        RagTraceRunDO run = runMapper.selectOne(Wrappers.lambdaQuery(RagTraceRunDO.class)
+                .eq(RagTraceRunDO::getTraceId, traceId)
+                .last("limit 1"));
+        if (run == null) {
+            return;
+        }
+        String mergedExtraData = mergeExtraData(run.getExtraData(), extraData);
+        RagTraceRunDO update = RagTraceRunDO.builder()
+                .extraData(mergedExtraData)
                 .build();
         runMapper.update(update, Wrappers.lambdaUpdate(RagTraceRunDO.class)
                 .eq(RagTraceRunDO::getTraceId, traceId));
@@ -71,5 +98,48 @@ public class RagTraceRecordServiceImpl implements RagTraceRecordService {
         nodeMapper.update(update, Wrappers.lambdaUpdate(RagTraceNodeDO.class)
                 .eq(RagTraceNodeDO::getTraceId, traceId)
                 .eq(RagTraceNodeDO::getNodeId, nodeId));
+    }
+
+    @Override
+    public void mergeNodeExtraData(String traceId, String nodeId, Map<String, Object> extraData) {
+        if (traceId == null || nodeId == null || extraData == null || extraData.isEmpty()) {
+            return;
+        }
+        RagTraceNodeDO node = nodeMapper.selectOne(Wrappers.lambdaQuery(RagTraceNodeDO.class)
+                .eq(RagTraceNodeDO::getTraceId, traceId)
+                .eq(RagTraceNodeDO::getNodeId, nodeId)
+                .last("limit 1"));
+        if (node == null) {
+            return;
+        }
+        String mergedExtraData = mergeExtraData(node.getExtraData(), extraData);
+        RagTraceNodeDO update = RagTraceNodeDO.builder()
+                .extraData(mergedExtraData)
+                .build();
+        nodeMapper.update(update, Wrappers.lambdaUpdate(RagTraceNodeDO.class)
+                .eq(RagTraceNodeDO::getTraceId, traceId)
+                .eq(RagTraceNodeDO::getNodeId, nodeId));
+    }
+
+    private String mergeExtraData(String existingJson, Map<String, Object> extraData) {
+        try {
+            Map<String, Object> merged = parseExtraData(existingJson);
+            extraData.forEach(merged::putIfAbsent);
+            return objectMapper.writeValueAsString(merged);
+        } catch (Exception e) {
+            throw new IllegalStateException("Merge trace extraData failed", e);
+        }
+    }
+
+    private Map<String, Object> parseExtraData(String json) {
+        if (json == null || json.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(json, EXTRA_DATA_TYPE);
+            return parsed == null ? new LinkedHashMap<>() : new LinkedHashMap<>(parsed);
+        } catch (Exception ignored) {
+            return new LinkedHashMap<>();
+        }
     }
 }

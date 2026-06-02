@@ -312,6 +312,7 @@ export function KnowledgeListPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[200px]">名称</TableHead>
+                  <TableHead className="w-[210px]">知识库 ID</TableHead>
                   <TableHead className="w-[180px]">Embedding模型</TableHead>
                   <TableHead className="w-[220px]">Collection</TableHead>
                   <TableHead className="w-[90px]">资料数</TableHead>
@@ -331,6 +332,19 @@ export function KnowledgeListPage() {
                         onClick={() => navigate(`/admin/knowledge/${kb.id}`)}
                       >
                         {kb.name}
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        className="font-mono text-xs text-slate-500 hover:text-slate-900"
+                        title="点击复制知识库 ID"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(kb.id);
+                          toast.success("知识库 ID 已复制");
+                        }}
+                      >
+                        {kb.id}
                       </button>
                     </TableCell>
                     <TableCell>

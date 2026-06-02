@@ -31,11 +31,14 @@ import com.nageoffer.ai.ragent.infra.config.AIModelProperties;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
 import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionContext;
 import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionService;
+import com.nageoffer.ai.ragent.rag.service.RagTraceReporter;
 import lombok.extern.slf4j.Slf4j;
 import com.nageoffer.ai.ragent.rag.service.ConversationGroupService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class StreamChatEventHandler implements StreamCallback {
@@ -50,12 +53,16 @@ public class StreamChatEventHandler implements StreamCallback {
     private final MemoryExtractionService memoryExtractionService;
     private final ConversationGroupService conversationGroupService;
     private final String taskId;
+    private final String traceId;
+    private final long traceStartMillis;
     private final String question;
     private final String userId;
     private final StreamTaskManager taskManager;
+    private final RagTraceReporter traceReporter;
     private final boolean sendTitleOnComplete;
     private final StringBuilder answer = new StringBuilder();
     private final StringBuilder thinking = new StringBuilder();
+    private final AtomicBoolean traceFinished = new AtomicBoolean(false);
     private long thinkingStartMs;
     private int thinkingDurationSeconds;
 
@@ -68,11 +75,16 @@ public class StreamChatEventHandler implements StreamCallback {
         this.sender = new SseEmitterSender(params.getEmitter());
         this.conversationId = params.getConversationId();
         this.taskId = params.getTaskId();
+        this.traceId = params.getTraceId();
+        this.traceStartMillis = params.getTraceStartMillis() == null
+                ? System.currentTimeMillis()
+                : params.getTraceStartMillis();
         this.question = params.getQuestion();
         this.memoryService = params.getMemoryService();
         this.memoryExtractionService = params.getMemoryExtractionService();
         this.conversationGroupService = params.getConversationGroupService();
         this.taskManager = params.getTaskManager();
+        this.traceReporter = params.getTraceReporter();
         this.userId = UserContext.getUserId();
 
         // 计算配置
@@ -87,7 +99,7 @@ public class StreamChatEventHandler implements StreamCallback {
      * 初始化：发送元数据事件并注册任务
      */
     private void initialize() {
-        sender.sendEvent(SSEEventType.META.value(), new MetaPayload(conversationId, taskId));
+        sender.sendEvent(SSEEventType.META.value(), new MetaPayload(conversationId, taskId, traceId));
         taskManager.register(taskId, sender, this::buildCompletionPayloadOnCancel);
     }
 
@@ -128,6 +140,7 @@ public class StreamChatEventHandler implements StreamCallback {
             }
         }
         String title = resolveTitleForEvent();
+        finishTrace(RagTraceReporter.STATUS_SUCCESS, null, true);
         return new CompletionPayload(String.valueOf(messageId), title);
     }
 
@@ -179,6 +192,7 @@ public class StreamChatEventHandler implements StreamCallback {
         String messageIdText = StrUtil.isBlank(messageId) ? null : messageId;
         sender.sendEvent(SSEEventType.FINISH.value(), new CompletionPayload(messageIdText, title));
         sender.sendEvent(SSEEventType.DONE.value(), "[DONE]");
+        finishTrace(RagTraceReporter.STATUS_SUCCESS, null, false);
         taskManager.unregister(taskId);
         sender.complete();
     }
@@ -189,7 +203,22 @@ public class StreamChatEventHandler implements StreamCallback {
             return;
         }
         taskManager.unregister(taskId);
+        finishTrace(RagTraceReporter.STATUS_ERROR, t, false);
         sender.fail(t);
+    }
+
+    private void finishTrace(String status, Throwable error, boolean cancelled) {
+        if (traceReporter == null || !traceFinished.compareAndSet(false, true)) {
+            return;
+        }
+        traceReporter.mergeRunExtraData(traceId, Map.of(
+                "stream", Map.of(
+                        "cancelled", cancelled,
+                        "answerLength", answer.length(),
+                        "thinkingLength", thinking.length()
+                )
+        ));
+        traceReporter.finishRun(traceId, status, error, traceStartMillis);
     }
 
     private void sendChunked(String type, String content) {

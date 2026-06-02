@@ -1,5 +1,7 @@
 import { api } from "@/services/api";
 
+export type TraceExtraData = Record<string, unknown>;
+
 export interface RagTraceRun {
   traceId: string;
   traceName?: string | null;
@@ -14,6 +16,7 @@ export interface RagTraceRun {
   durationMs?: number | null;
   startTime?: string | null;
   endTime?: string | null;
+  extraData?: TraceExtraData | null;
 }
 
 export interface RagTraceNode {
@@ -30,6 +33,7 @@ export interface RagTraceNode {
   durationMs?: number | null;
   startTime?: string | null;
   endTime?: string | null;
+  extraData?: TraceExtraData | null;
 }
 
 export interface RagTraceDetail {

@@ -28,6 +28,7 @@ import com.nageoffer.ai.ragent.rag.controller.request.IntentNodeUpdateRequest;
 import com.nageoffer.ai.ragent.rag.controller.vo.IntentNodeTreeVO;
 import com.nageoffer.ai.ragent.rag.dao.entity.IntentNodeDO;
 import com.nageoffer.ai.ragent.rag.dao.mapper.IntentNodeMapper;
+import com.nageoffer.ai.ragent.knowledge.dao.entity.KnowledgeBaseDO;
 import com.nageoffer.ai.ragent.knowledge.dao.mapper.KnowledgeBaseMapper;
 import com.nageoffer.ai.ragent.rag.enums.IntentKind;
 import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
@@ -39,6 +40,7 @@ import com.nageoffer.ai.ragent.rag.core.intent.IntentTreeCacheManager;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentTreeFactory;
 import com.nageoffer.ai.ragent.ingestion.service.IntentTreeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,7 @@ import java.util.stream.Collectors;
 
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentNodeDO> implements IntentTreeService {
 
@@ -77,7 +80,9 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
                 }));
 
         // 根节点：parentCode 为空
-        List<IntentNodeDO> roots = parentMap.getOrDefault("ROOT", Collections.emptyList());
+        List<IntentNodeDO> roots = parentMap.getOrDefault("ROOT", Collections.emptyList()).stream()
+                .filter(node -> !isLegacySampleRoot(node.getIntentCode()))
+                .toList();
 
         // 递归构建树
         List<IntentNodeTreeVO> tree = new ArrayList<>();
@@ -124,9 +129,7 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
                 .kbId(
                         StrUtil.isNotBlank(requestParam.getKbId()) ? requestParam.getKbId() : null
                 )
-                .collectionName(
-                        StrUtil.isNotBlank(requestParam.getKbId()) ? knowledgeBaseMapper.selectById(requestParam.getKbId()).getCollectionName() : null
-                )
+                .collectionName(resolveCollectionName(requestParam.getKbId()))
                 .name(requestParam.getName())
                 .level(requestParam.getLevel())
                 .parentCode(requestParam.getParentCode())
@@ -305,6 +308,7 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int initFromFactory() {
         List<IntentNode> roots = IntentTreeFactory.buildIntentTree();
         List<IntentNode> allNodes = flatten(roots);
@@ -340,6 +344,22 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
         }
 
         return created;
+    }
+
+    private String resolveCollectionName(String kbId) {
+        if (StrUtil.isBlank(kbId)) {
+            return null;
+        }
+        KnowledgeBaseDO knowledgeBase = knowledgeBaseMapper.selectById(kbId);
+        if (knowledgeBase == null) {
+            log.warn("Intent node references a missing knowledge base, kbId={}. collectionName will be left empty.", kbId);
+            return null;
+        }
+        return knowledgeBase.getCollectionName();
+    }
+
+    private boolean isLegacySampleRoot(String intentCode) {
+        return "group".equals(intentCode) || "biz".equals(intentCode) || "sales".equals(intentCode);
     }
 
     /**

@@ -23,25 +23,14 @@ import com.nageoffer.ai.ragent.agent.core.AgentContext;
 import com.nageoffer.ai.ragent.agent.core.AgentProperties;
 import com.nageoffer.ai.ragent.agent.core.AgentRequest;
 import com.nageoffer.ai.ragent.agent.core.AgentResponse;
+import com.nageoffer.ai.ragent.agent.core.AgentStep;
 import com.nageoffer.ai.ragent.agent.memory.InMemoryAgentMemory;
-import com.nageoffer.ai.ragent.agent.planner.AgentPlan;
 import com.nageoffer.ai.ragent.agent.planner.AgentPlanner;
-import com.nageoffer.ai.ragent.agent.planner.ToolCallSpec;
-import com.nageoffer.ai.ragent.agent.prompt.AgentPromptBuilder;
-import com.nageoffer.ai.ragent.agent.tool.AgentTool;
+import com.nageoffer.ai.ragent.agent.planner.AgentPlannerResult;
 import com.nageoffer.ai.ragent.agent.tool.AgentToolNames;
 import com.nageoffer.ai.ragent.agent.tool.ToolCallResult;
-import com.nageoffer.ai.ragent.agent.tool.ToolRegistry;
-import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
-import com.nageoffer.ai.ragent.infra.chat.LLMService;
-import com.nageoffer.ai.ragent.infra.chat.StreamCallback;
-import com.nageoffer.ai.ragent.infra.chat.StreamCancellationHandle;
-import com.nageoffer.ai.ragent.rag.core.mcp.McpToolExecutor;
-import com.nageoffer.ai.ragent.rag.core.mcp.McpToolRegistry;
-import io.modelcontextprotocol.spec.McpSchema.Tool;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,94 +42,88 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DefaultAgentIntegrationTest {
 
     @Test
-    void shouldAnswerDirectly() {
-        StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(fixedPlanner(directPlan()), new StubLlmService("direct final"), 3, tool);
+    void shouldReturnPlannerDirectAnswer() {
+        DefaultAgent agent = newAgent(fixedPlanner(successResult("direct final")));
 
         AgentResponse response = agent.run(request("hello", 3));
 
         assertTrue(response.isSuccess());
         assertEquals("direct final", response.getAnswer());
-        assertEquals(0, tool.calls);
+        assertEquals(1, response.getSteps().size());
+        assertEquals(AgentActionType.LLM_ANSWER.name(), response.getSteps().get(0).getActionType());
     }
 
     @Test
-    void shouldConvertLegacyRagPathToKnowledgeTool() {
-        StubAgentTool knowledgeTool = StubAgentTool.success(AgentToolNames.KNOWLEDGE_SEARCH);
-        DefaultAgent agent = newAgent(fixedPlanner(ragPlan()), new StubLlmService("rag final"), 3, knowledgeTool);
-
-        AgentResponse response = agent.run(request("use documents", 3));
-
-        assertTrue(response.isSuccess());
-        assertEquals(1, knowledgeTool.calls);
-        assertEquals(1, response.getToolResults().size());
-        assertEquals(AgentToolNames.KNOWLEDGE_SEARCH, response.getToolResults().get(0).getToolName());
-    }
-
-    @Test
-    void shouldRunMcpToolPath() {
-        StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(fixedPlanner(toolPlan("weather", Map.of("city", "Hangzhou"))),
-                new StubLlmService("tool final"), 3, tool);
+    void shouldReturnPlannerToolPathResult() {
+        ToolCallResult weatherResult = ToolCallResult.builder()
+                .toolName("weather")
+                .arguments(Map.of("city", "Hangzhou"))
+                .rawResult("tool ok")
+                .success(true)
+                .build();
+        DefaultAgent agent = newAgent(fixedPlanner(successResult(
+                "tool final",
+                List.of(toolStep("weather", "{\"city\":\"Hangzhou\"}", "tool ok")),
+                List.of(weatherResult)
+        )));
 
         AgentResponse response = agent.run(request("weather", 3));
 
         assertTrue(response.isSuccess());
-        assertEquals(1, tool.calls);
+        assertEquals("tool final", response.getAnswer());
         assertEquals(1, response.getToolResults().size());
-        assertTrue(response.getToolResults().get(0).isSuccess());
+        assertEquals("weather", response.getToolResults().get(0).getToolName());
     }
 
     @Test
-    void shouldRunRagAndMcpCombinedPath() {
-        StubAgentTool knowledgeTool = StubAgentTool.success(AgentToolNames.KNOWLEDGE_SEARCH);
-        StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(fixedPlanner(ragAndToolPlan("weather")),
-                new StubLlmService("combined final"), 3, knowledgeTool, tool);
+    void shouldReturnPlannerKnowledgeAndMcpCombinedPath() {
+        ToolCallResult knowledgeResult = ToolCallResult.builder()
+                .toolName(AgentToolNames.KNOWLEDGE_SEARCH)
+                .rawResult("{\"count\":1,\"chunks\":[{}]}")
+                .success(true)
+                .build();
+        ToolCallResult weatherResult = ToolCallResult.builder()
+                .toolName("weather")
+                .rawResult("tool ok")
+                .success(true)
+                .build();
+        DefaultAgent agent = newAgent(fixedPlanner(successResult(
+                "combined final",
+                List.of(
+                        toolStep(AgentToolNames.KNOWLEDGE_SEARCH, "{\"query\":\"docs\"}", knowledgeResult.getRawResult()),
+                        toolStep("weather", "{\"city\":\"Hangzhou\"}", "tool ok")
+                ),
+                List.of(knowledgeResult, weatherResult)
+        )));
 
         AgentResponse response = agent.run(request("docs plus weather", 3));
 
         assertTrue(response.isSuccess());
-        assertEquals(1, knowledgeTool.calls);
-        assertEquals(1, tool.calls);
+        assertEquals("combined final", response.getAnswer());
         assertEquals(2, response.getToolResults().size());
     }
 
     @Test
-    void shouldContinueToFinalAnswerWhenToolFails() {
-        StubAgentTool tool = StubAgentTool.failure("weather");
-        DefaultAgent agent = newAgent(fixedPlanner(toolPlan("weather", Map.of("city", "Hangzhou"))),
-                new StubLlmService("fallback final"), 3, tool);
+    void shouldReturnPlannerFailure() {
+        DefaultAgent agent = newAgent(context -> AgentPlannerResult.builder()
+                .success(false)
+                .errorMessage("planner failed")
+                .steps(context.getSteps())
+                .toolResults(context.getToolResults())
+                .retrievedContext(context.getRetrievedContext())
+                .build());
 
-        AgentResponse response = agent.run(request("weather", 3));
+        AgentResponse response = agent.run(request("hello", 3));
 
-        assertTrue(response.isSuccess());
-        assertEquals("fallback final", response.getAnswer());
-        assertEquals(1, response.getToolResults().size());
-        assertFalse(response.getToolResults().get(0).isSuccess());
+        assertFalse(response.isSuccess());
+        assertEquals("planner failed", response.getErrorMessage());
     }
 
     @Test
-    void shouldStopAtMaxIterations() {
-        StubAgentTool tool = StubAgentTool.success("weather");
-        DefaultAgent agent = newAgent(new CountingToolPlanner(), new StubLlmService("max final"), 2, tool);
-
-        AgentResponse response = agent.run(request("keep using tool", 2));
-
-        assertTrue(response.isSuccess());
-        assertEquals(2, tool.calls);
-        assertEquals(2, response.getToolResults().size());
-        assertTrue(response.getSteps().stream().anyMatch(step -> "max-iterations".equals(step.getActionName())));
-    }
-
-    @Test
-    void shouldReturnClarificationBeforePlanningToolsAndFinalAnswer() {
+    void shouldReturnClarificationBeforePlanning() {
+        CountingPlanner planner = new CountingPlanner(successResult("should not answer"));
         CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
-        StubAgentTool tool = StubAgentTool.success("weather");
-        StubLlmService llmService = new StubLlmService("should not answer");
-        DefaultAgent agent = newAgent(context -> {
-            throw new AssertionError("planner should not be called when clarification is required");
-        }, llmService, clarificationService, 3, tool);
+        DefaultAgent agent = newAgent(planner, clarificationService, 3);
 
         AgentResponse response = agent.run(request("query process", 3));
 
@@ -148,17 +131,16 @@ class DefaultAgentIntegrationTest {
         assertTrue(response.isClarificationRequired());
         assertEquals("Please choose a system.", response.getAnswer());
         assertEquals(1, clarificationService.calls);
-        assertEquals(0, tool.calls);
-        assertEquals(0, llmService.calls);
+        assertEquals(0, planner.calls);
         assertTrue(response.getSteps().stream()
                 .anyMatch(step -> AgentActionType.CLARIFY.name().equals(step.getActionType())));
     }
 
     @Test
     void shouldSkipClarificationWhenRequestDisablesRag() {
+        CountingPlanner planner = new CountingPlanner(successResult("direct final"));
         CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
-        StubLlmService llmService = new StubLlmService("direct final");
-        DefaultAgent agent = newAgent(fixedPlanner(directPlan()), llmService, clarificationService, 3);
+        DefaultAgent agent = newAgent(planner, clarificationService, 3);
 
         AgentRequest request = request("hello", 3);
         request.setEnableRag(false);
@@ -168,16 +150,16 @@ class DefaultAgentIntegrationTest {
         assertFalse(response.isClarificationRequired());
         assertEquals("direct final", response.getAnswer());
         assertEquals(0, clarificationService.calls);
-        assertEquals(1, llmService.calls);
+        assertEquals(1, planner.calls);
     }
 
     @Test
     void shouldSkipClarificationWhenAgentRagDisabled() {
+        CountingPlanner planner = new CountingPlanner(successResult("direct final"));
         CountingClarificationService clarificationService = new CountingClarificationService("Please choose a system.");
-        StubLlmService llmService = new StubLlmService("direct final");
         AgentProperties properties = new AgentProperties();
         properties.getRag().setEnabled(false);
-        DefaultAgent agent = newAgent(properties, fixedPlanner(directPlan()), llmService, clarificationService);
+        DefaultAgent agent = newAgent(properties, planner, clarificationService);
 
         AgentResponse response = agent.run(request("hello", 3));
 
@@ -185,40 +167,27 @@ class DefaultAgentIntegrationTest {
         assertFalse(response.isClarificationRequired());
         assertEquals("direct final", response.getAnswer());
         assertEquals(0, clarificationService.calls);
-        assertEquals(1, llmService.calls);
+        assertEquals(1, planner.calls);
     }
 
-    private DefaultAgent newAgent(AgentPlanner planner, LLMService llmService, int maxIterations, AgentTool... tools) {
+    private DefaultAgent newAgent(AgentPlanner planner) {
+        return newAgent(planner, AgentClarificationService.empty(), 3);
+    }
+
+    private DefaultAgent newAgent(AgentPlanner planner, AgentClarificationService clarificationService,
+                                  int maxIterations) {
         AgentProperties properties = new AgentProperties();
         properties.setMaxIterations(maxIterations);
         properties.getMemory().setMaxMessages(20);
-        return newAgent(properties, planner, llmService, AgentClarificationService.empty(), tools);
+        return newAgent(properties, planner, clarificationService);
     }
 
-    private DefaultAgent newAgent(AgentPlanner planner, LLMService llmService,
-                                  AgentClarificationService clarificationService,
-                                  int maxIterations, AgentTool... tools) {
-        AgentProperties properties = new AgentProperties();
-        properties.setMaxIterations(maxIterations);
-        properties.getMemory().setMaxMessages(20);
-        return newAgent(properties, planner, llmService, clarificationService, tools);
-    }
-
-    private DefaultAgent newAgent(AgentProperties properties, AgentPlanner planner, LLMService llmService,
-                                  AgentClarificationService clarificationService, AgentTool... tools) {
-        ToolRegistry toolRegistry = new ToolRegistry(new EmptyMcpToolRegistry());
-        for (AgentTool tool : tools) {
-            if (tool != null) {
-                toolRegistry.register(tool);
-            }
-        }
+    private DefaultAgent newAgent(AgentProperties properties, AgentPlanner planner,
+                                  AgentClarificationService clarificationService) {
         return new DefaultAgent(
                 properties,
                 planner,
                 new InMemoryAgentMemory(properties),
-                toolRegistry,
-                new AgentPromptBuilder(),
-                llmService,
                 clarificationService
         );
     }
@@ -231,137 +200,59 @@ class DefaultAgentIntegrationTest {
                 .build();
     }
 
-    private AgentPlanner fixedPlanner(AgentPlan plan) {
-        return context -> plan;
+    private AgentPlanner fixedPlanner(AgentPlannerResult result) {
+        return context -> result;
     }
 
-    private AgentPlan directPlan() {
-        return AgentPlan.builder()
-                .shouldAnswerDirectly(true)
-                .reasoningSummary("Direct answer is enough.")
-                .maxIterations(3)
+    private AgentPlannerResult successResult(String answer) {
+        return successResult(answer,
+                List.of(answerStep(answer)),
+                List.of());
+    }
+
+    private AgentPlannerResult successResult(String answer, List<AgentStep> steps, List<ToolCallResult> toolResults) {
+        return AgentPlannerResult.builder()
+                .answer(answer)
+                .steps(steps)
+                .toolResults(toolResults)
+                .success(true)
                 .build();
     }
 
-    private AgentPlan ragPlan() {
-        return AgentPlan.builder()
-                .needRag(true)
-                .reasoningSummary("Need RAG.")
-                .maxIterations(3)
+    private AgentStep answerStep(String answer) {
+        return AgentStep.builder()
+                .index(1)
+                .thoughtSummary("Final answer.")
+                .actionType(AgentActionType.LLM_ANSWER.name())
+                .actionName("final-answer")
+                .output(answer)
                 .build();
     }
 
-    private AgentPlan toolPlan(String toolName, Map<String, Object> arguments) {
-        return AgentPlan.builder()
-                .needTool(true)
-                .toolCalls(List.of(ToolCallSpec.builder()
-                        .toolName(toolName)
-                        .arguments(new LinkedHashMap<>(arguments))
-                        .build()))
-                .reasoningSummary("Need MCP tool.")
-                .maxIterations(3)
+    private AgentStep toolStep(String toolName, String input, String output) {
+        return AgentStep.builder()
+                .index(1)
+                .thoughtSummary("Need tool.")
+                .actionType(AgentActionType.MCP_TOOL_CALL.name())
+                .actionName(toolName)
+                .input(input)
+                .output(output)
                 .build();
     }
 
-    private AgentPlan ragAndToolPlan(String toolName) {
-        return AgentPlan.builder()
-                .needRag(true)
-                .needTool(true)
-                .toolCalls(List.of(ToolCallSpec.builder()
-                        .toolName(toolName)
-                        .arguments(new LinkedHashMap<>(Map.of("city", "Hangzhou")))
-                        .build()))
-                .reasoningSummary("Need RAG and MCP tool.")
-                .maxIterations(3)
-                .build();
-    }
+    private static class CountingPlanner implements AgentPlanner {
 
-    private static class CountingToolPlanner implements AgentPlanner {
-
-        private int count;
-
-        @Override
-        public AgentPlan plan(AgentContext context) {
-            count++;
-            return AgentPlan.builder()
-                    .needTool(true)
-                    .toolCalls(List.of(ToolCallSpec.builder()
-                            .toolName("weather")
-                            .arguments(new LinkedHashMap<>(Map.of("round", count)))
-                            .build()))
-                    .reasoningSummary("Need another tool call.")
-                    .maxIterations(2)
-                    .build();
-        }
-    }
-
-    private static class StubAgentTool implements AgentTool {
-
-        private final String name;
-        private final boolean success;
+        private final AgentPlannerResult result;
         private int calls;
 
-        private StubAgentTool(String name, boolean success) {
-            this.name = name;
-            this.success = success;
-        }
-
-        static StubAgentTool success(String name) {
-            return new StubAgentTool(name, true);
-        }
-
-        static StubAgentTool failure(String name) {
-            return new StubAgentTool(name, false);
+        private CountingPlanner(AgentPlannerResult result) {
+            this.result = result;
         }
 
         @Override
-        public String name() {
-            return name;
-        }
-
-        @Override
-        public String description() {
-            return "stub tool";
-        }
-
-        @Override
-        public Map<String, Object> schema() {
-            return Map.of();
-        }
-
-        @Override
-        public ToolCallResult call(Map<String, Object> arguments) {
+        public AgentPlannerResult plan(AgentContext context) {
             calls++;
-            return ToolCallResult.builder()
-                    .toolName(name)
-                    .arguments(arguments)
-                    .rawResult(success ? "tool ok" : "")
-                    .success(success)
-                    .errorMessage(success ? null : "tool failed")
-                    .latencyMs(1L)
-                    .build();
-        }
-    }
-
-    private static class StubLlmService implements LLMService {
-
-        private final String answer;
-        private int calls;
-
-        private StubLlmService(String answer) {
-            this.answer = answer;
-        }
-
-        @Override
-        public String chat(ChatRequest request) {
-            calls++;
-            return answer;
-        }
-
-        @Override
-        public StreamCancellationHandle streamChat(ChatRequest request, StreamCallback callback) {
-            return () -> {
-            };
+            return result;
         }
     }
 
@@ -378,42 +269,6 @@ class DefaultAgentIntegrationTest {
         public Optional<String> detectClarification(AgentContext context) {
             calls++;
             return Optional.ofNullable(prompt);
-        }
-    }
-
-    private static class EmptyMcpToolRegistry implements McpToolRegistry {
-
-        @Override
-        public void register(McpToolExecutor executor) {
-        }
-
-        @Override
-        public void unregister(String toolId) {
-        }
-
-        @Override
-        public Optional<McpToolExecutor> getExecutor(String toolId) {
-            return Optional.empty();
-        }
-
-        @Override
-        public List<Tool> listAllTools() {
-            return List.of();
-        }
-
-        @Override
-        public List<McpToolExecutor> listAllExecutors() {
-            return List.of();
-        }
-
-        @Override
-        public boolean contains(String toolId) {
-            return false;
-        }
-
-        @Override
-        public int size() {
-            return 0;
         }
     }
 }

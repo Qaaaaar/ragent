@@ -146,8 +146,13 @@ public class VectorGlobalSearchChannel implements SearchChannel {
                     .channelName(getName())
                     .chunks(List.of())
                     .latencyMs(System.currentTimeMillis() - startTime)
+                    .errorMessage(errorMessage(e))
                     .build();
         }
+    }
+
+    private String errorMessage(Exception e) {
+        return e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
     }
 
     /**

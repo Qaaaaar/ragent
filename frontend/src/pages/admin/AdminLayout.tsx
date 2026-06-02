@@ -15,7 +15,9 @@ import {
   Settings,
   Upload,
   FolderKanban,
-  Workflow
+  GitBranch,
+  Workflow,
+  type LucideIcon
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
@@ -42,7 +44,7 @@ import { Avatar } from "@/components/common/Avatar";
 type MenuChild = {
   path: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   search?: string;
 };
 
@@ -50,7 +52,7 @@ type MenuItem = {
   id?: string;
   path: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   search?: string;
   children?: MenuChild[];
 };
@@ -90,6 +92,11 @@ const menuGroups: MenuGroup[] = [
         ]
       },
       {
+        path: "/admin/intent-tree",
+        label: "意图树",
+        icon: GitBranch
+      },
+      {
         path: "/admin/traces",
         label: "Agent 链路",
         icon: Workflow
@@ -111,6 +118,7 @@ const menuGroups: MenuGroup[] = [
 const breadcrumbMap: Record<string, string> = {
   knowledge: "个人知识库",
   ingestion: "资料入库",
+  "intent-tree": "意图树",
   traces: "Agent 链路",
   settings: "系统设置"
 };

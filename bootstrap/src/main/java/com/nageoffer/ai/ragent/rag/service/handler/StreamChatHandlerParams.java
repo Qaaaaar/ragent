@@ -21,6 +21,7 @@ import com.nageoffer.ai.ragent.infra.config.AIModelProperties;
 import com.nageoffer.ai.ragent.rag.core.memory.ConversationMemoryService;
 import com.nageoffer.ai.ragent.rag.core.memory.MemoryExtractionService;
 import com.nageoffer.ai.ragent.rag.service.ConversationGroupService;
+import com.nageoffer.ai.ragent.rag.service.RagTraceReporter;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -47,6 +48,10 @@ public class StreamChatHandlerParams {
      * 任务ID
      */
     private final String taskId;
+
+    private final String traceId;
+
+    private final Long traceStartMillis;
 
     /**
      * Original user question.
@@ -77,4 +82,6 @@ public class StreamChatHandlerParams {
      * 任务管理器
      */
     private final StreamTaskManager taskManager;
+
+    private final RagTraceReporter traceReporter;
 }

@@ -61,6 +61,11 @@ public class IntentTreeController {
         return Results.success(intentTreeService.createNode(requestParam));
     }
 
+    @PostMapping("/intent-tree/init-from-factory")
+    public Result<Integer> initFromFactory() {
+        return Results.success(intentTreeService.initFromFactory());
+    }
+
     /**
      * 更新意图节点
      */

@@ -47,7 +47,6 @@ import java.util.Date;
 public class ChatRateLimitAspect {
 
     private static final String STATUS_RUNNING = "RUNNING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_ERROR = "ERROR";
 
     private final ChatQueueLimiter chatQueueLimiter;
@@ -103,15 +102,9 @@ public class ChatRateLimitAspect {
 
         RagTraceContext.setTraceId(traceId);
         RagTraceContext.setTaskId(taskId);
+        RagTraceContext.setRunStartMillis(startMillis);
         try {
             method.invoke(target, args);
-            traceRecordService.finishRun(
-                    traceId,
-                    STATUS_SUCCESS,
-                    null,
-                    new Date(),
-                    System.currentTimeMillis() - startMillis
-            );
         } catch (Throwable ex) {
             Throwable cause = unwrap(ex);
             traceRecordService.finishRun(
